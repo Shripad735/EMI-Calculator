@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "EMI Calculator",
+    "slug": "emi-calculator-india",
+    "version": "1.0.0",
+    "description": "Calculate EMI for various types of loans in India",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.emicalculator.india"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.emicalculator.india",
+      "versionCode": 1,
+      "permissions": [
+        "INTERNET"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "b83b0861-a9f8-4179-879e-4de3e495e546"
+      },
+      "EXPO_PUBLIC_API_URL": "https://emi-calculator-backend.vercel.app"
+    },
+    "owner": "shripadgaurav444"
+  }
+}
