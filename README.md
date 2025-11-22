@@ -1,4 +1,4 @@
-# EMI Calculator India
+# EMI Calculator
 
 A full-stack mobile application for calculating Equated Monthly Installments (EMI) for various types of loans in India.
 
