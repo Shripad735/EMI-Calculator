@@ -285,6 +285,3 @@ For detailed deployment instructions, see:
 
 See the [Deployment Guide](./DEPLOYMENT_GUIDE.md) for detailed instructions, troubleshooting, and security considerations.
 
-## License
-
-ISC
