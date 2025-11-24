@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
@@ -199,8 +200,27 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.section}>
             <View style={styles.sliderHeader}>
               <Text style={styles.sectionLabel}>Loan Amount</Text>
-              <Text style={styles.sliderValue}>{formatIndianCurrency(loanAmount)}</Text>
+              <TouchableOpacity 
+                style={styles.valueInputContainer}
+                onPress={() => {}}
+              >
+                <TextInput
+                  style={styles.valueInput}
+                  value={loanAmount.toString()}
+                  onChangeText={(text) => {
+                    const numValue = parseFloat(text.replace(/,/g, '')) || 0;
+                    if (numValue >= 10000 && numValue <= 10000000) {
+                      setLoanAmount(numValue);
+                    } else if (text === '') {
+                      setLoanAmount(10000);
+                    }
+                  }}
+                  keyboardType="numeric"
+                  placeholder="Enter amount"
+                />
+              </TouchableOpacity>
             </View>
+            <Text style={styles.formattedValue}>{formatIndianCurrency(loanAmount)}</Text>
             <Slider
               style={styles.slider}
               minimumValue={10000}
@@ -222,8 +242,27 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.section}>
             <View style={styles.sliderHeader}>
               <Text style={styles.sectionLabel}>Interest Rate</Text>
-              <Text style={styles.sliderValue}>{interestRate.toFixed(1)}%</Text>
+              <TouchableOpacity 
+                style={styles.valueInputContainer}
+                onPress={() => {}}
+              >
+                <TextInput
+                  style={styles.valueInput}
+                  value={interestRate.toString()}
+                  onChangeText={(text) => {
+                    const numValue = parseFloat(text) || 0;
+                    if (numValue >= 1 && numValue <= 30) {
+                      setInterestRate(numValue);
+                    } else if (text === '') {
+                      setInterestRate(1);
+                    }
+                  }}
+                  keyboardType="decimal-pad"
+                  placeholder="Enter rate"
+                />
+              </TouchableOpacity>
             </View>
+            <Text style={styles.formattedValue}>{interestRate.toFixed(1)}% per annum</Text>
             <Slider
               style={styles.slider}
               minimumValue={1}
@@ -245,10 +284,30 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.section}>
             <View style={styles.sliderHeader}>
               <Text style={styles.sectionLabel}>Loan Tenure</Text>
-              <Text style={styles.sliderValue}>
-                {tenure} {tenureUnit === 'months' ? 'Months' : 'Years'}
-              </Text>
+              <TouchableOpacity 
+                style={styles.valueInputContainer}
+                onPress={() => {}}
+              >
+                <TextInput
+                  style={styles.valueInput}
+                  value={tenure.toString()}
+                  onChangeText={(text) => {
+                    const numValue = parseInt(text) || 0;
+                    const maxValue = tenureUnit === 'months' ? 360 : 30;
+                    if (numValue >= 1 && numValue <= maxValue) {
+                      setTenure(numValue);
+                    } else if (text === '') {
+                      setTenure(1);
+                    }
+                  }}
+                  keyboardType="numeric"
+                  placeholder="Enter tenure"
+                />
+              </TouchableOpacity>
             </View>
+            <Text style={styles.formattedValue}>
+              {tenure} {tenureUnit === 'months' ? 'Months' : 'Years'}
+            </Text>
             
             {/* Tenure Unit Toggle */}
             <View style={styles.toggleContainer}>
@@ -517,12 +576,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  sliderValue: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.bold,
+  valueInputContainer: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.base,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    minWidth: 100,
+  },
+  valueInput: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
     color: colors.primary,
+    textAlign: 'right',
+  },
+  formattedValue: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textLight,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
   },
   slider: {
     width: '100%',

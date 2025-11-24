@@ -5,16 +5,23 @@ import { useAuth } from '../context/AuthContext';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 
 // Import screens
+import DashboardScreen from '../screens/DashboardScreen';
 import HomeScreen from '../screens/HomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
 import SavedPlansScreen from '../screens/SavedPlansScreen';
+import CompareLoanScreen from '../screens/CompareLoanScreen';
+import HistoryScreen from '../screens/HistoryScreen';
+import FDCalculatorScreen from '../screens/FDCalculatorScreen';
+import RDCalculatorScreen from '../screens/RDCalculatorScreen';
+import SIPCalculatorScreen from '../screens/SIPCalculatorScreen';
+import GSTCalculatorScreen from '../screens/GSTCalculatorScreen';
 
 const Stack = createNativeStackNavigator();
 
 /**
  * AuthStack - Navigation stack for unauthenticated users
- * Contains: Home (Calculator), Login, Signup
+ * Contains: Dashboard, All Calculators, Login, Signup
  */
 function AuthStack() {
   return (
@@ -23,7 +30,13 @@ function AuthStack() {
         headerShown: false,
       }}
     >
+      <Stack.Screen name="Dashboard" component={DashboardScreen} />
       <Stack.Screen name="Home" component={HomeScreen} />
+      <Stack.Screen name="CompareLoan" component={CompareLoanScreen} />
+      <Stack.Screen name="FDCalculator" component={FDCalculatorScreen} />
+      <Stack.Screen name="RDCalculator" component={RDCalculatorScreen} />
+      <Stack.Screen name="SIPCalculator" component={SIPCalculatorScreen} />
+      <Stack.Screen name="GSTCalculator" component={GSTCalculatorScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Signup" component={SignupScreen} />
     </Stack.Navigator>
@@ -32,7 +45,7 @@ function AuthStack() {
 
 /**
  * MainStack - Navigation stack for authenticated users
- * Contains: Home (Calculator with save option), SavedPlans
+ * Contains: Dashboard, All Calculators, SavedPlans, History
  */
 function MainStack() {
   return (
@@ -41,7 +54,14 @@ function MainStack() {
         headerShown: false,
       }}
     >
+      <Stack.Screen name="Dashboard" component={DashboardScreen} />
       <Stack.Screen name="Home" component={HomeScreen} />
+      <Stack.Screen name="CompareLoan" component={CompareLoanScreen} />
+      <Stack.Screen name="History" component={HistoryScreen} />
+      <Stack.Screen name="FDCalculator" component={FDCalculatorScreen} />
+      <Stack.Screen name="RDCalculator" component={RDCalculatorScreen} />
+      <Stack.Screen name="SIPCalculator" component={SIPCalculatorScreen} />
+      <Stack.Screen name="GSTCalculator" component={GSTCalculatorScreen} />
       <Stack.Screen name="SavedPlans" component={SavedPlansScreen} />
     </Stack.Navigator>
   );
