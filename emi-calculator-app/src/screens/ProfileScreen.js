@@ -34,7 +34,15 @@ export default function ProfileScreen({ navigation }) {
       'Are you sure you want to logout?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', style: 'destructive', onPress: logout },
+        { 
+          text: 'Logout', 
+          style: 'destructive', 
+          onPress: async () => {
+            console.log('Logout button pressed');
+            await logout();
+            console.log('Logout completed');
+          }
+        },
       ]
     );
   };

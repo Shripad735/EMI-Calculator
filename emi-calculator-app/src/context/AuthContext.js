@@ -163,9 +163,12 @@ export const AuthProvider = ({ children }) => {
   // Logout
   const logout = async () => {
     try {
+      console.log('Starting logout process...');
+      
       // Sign out from Firebase (ignore errors if not signed in)
       try {
         await signOut(auth);
+        console.log('Firebase signout successful');
       } catch (firebaseError) {
         console.log('Firebase signout skipped:', firebaseError.message);
       }
@@ -173,18 +176,21 @@ export const AuthProvider = ({ children }) => {
       // Clear stored data
       await AsyncStorage.removeItem(config.tokenKey);
       await AsyncStorage.removeItem(config.userKey);
+      console.log('AsyncStorage cleared');
 
+      // Clear state
       setUser(null);
       setToken(null);
       setVerificationId(null);
       
-      console.log('Logout successful');
+      console.log('Logout successful - state cleared');
     } catch (error) {
       console.error('Error logging out:', error);
       // Still clear state even if there's an error
       setUser(null);
       setToken(null);
       setVerificationId(null);
+      console.log('Logout completed with errors but state cleared');
     }
   };
 
