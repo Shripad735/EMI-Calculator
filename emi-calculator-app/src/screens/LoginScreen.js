@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
-import { firebaseConfig } from '../config/firebase';
+import { app, firebaseConfig } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
 
@@ -26,15 +26,10 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [confirmation, setConfirmation] = useState(null);
-  const [firebaseReady, setFirebaseReady] = useState(false);
 
-  // Ensure Firebase is ready before rendering
+  // Log Firebase app status on mount
   useEffect(() => {
-    // Small delay to ensure Firebase is fully initialized
-    const timer = setTimeout(() => {
-      setFirebaseReady(true);
-    }, 100);
-    return () => clearTimeout(timer);
+    console.log('LoginScreen mounted, Firebase app:', app?.name);
   }, []);
 
   const handleSendOTP = async () => {
@@ -106,13 +101,11 @@ export default function LoginScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {firebaseReady && (
-        <FirebaseRecaptchaVerifierModal
-          ref={recaptchaVerifier}
-          firebaseConfig={firebaseConfig}
-          attemptInvisibleVerification={true}
-        />
-      )}
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={firebaseConfig}
+        attemptInvisibleVerification={true}
+      />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
