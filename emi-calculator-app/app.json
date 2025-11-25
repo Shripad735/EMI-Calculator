@@ -2,7 +2,7 @@
   "expo": {
     "name": "EMI Calculator",
     "slug": "emi-calculator-india",
-    "version": "1.0.0",
+    "version": "1.2.0",
     "description": "Calculate EMI for various types of loans in India",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
