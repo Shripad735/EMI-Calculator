@@ -7,14 +7,17 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
+  Alert,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { calculateFD } from '../utils/fdCalculator';
 import { formatIndianCurrency } from '../utils/currencyFormatter';
 import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
 import { saveToHistory } from '../utils/historyStorage';
+import { useAuth } from '../context/AuthContext';
 
 export default function FDCalculatorScreen({ navigation }) {
+  const { user } = useAuth();
   const [principal, setPrincipal] = useState(100000);
   const [interestRate, setInterestRate] = useState(6.5);
   const [tenure, setTenure] = useState(12);
@@ -30,15 +33,29 @@ export default function FDCalculatorScreen({ navigation }) {
   }, [principal, interestRate, tenure]);
 
   const handleSaveToHistory = async () => {
+    // Check if user is logged in
+    if (!user) {
+      Alert.alert(
+        'Login Required',
+        'Please login to save your calculations to history.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Login', onPress: () => navigation.navigate('Login') }
+        ]
+      );
+      return;
+    }
+
     try {
       await saveToHistory({
         type: 'fd',
         data: { principal, interestRate, tenure },
         result,
       });
-      alert('Saved to history!');
+      Alert.alert('Success', 'Saved to history successfully!');
     } catch (error) {
       console.error('Error saving to history:', error);
+      Alert.alert('Error', 'Failed to save to history. Please try again.');
     }
   };
 
