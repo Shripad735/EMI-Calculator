@@ -12,6 +12,14 @@ const userSchema = new mongoose.Schema({
     minlength: [2, 'Name must be at least 2 characters long'],
     maxlength: [100, 'Name cannot exceed 100 characters'],
     default: '',
+    // Allow empty string for phone auth users who haven't set a name yet
+    validate: {
+      validator: function(v) {
+        // Allow empty string or strings with at least 2 characters
+        return v === '' || v.length >= 2;
+      },
+      message: 'Name must be either empty or at least 2 characters long'
+    }
   },
   email: {
     type: String,
