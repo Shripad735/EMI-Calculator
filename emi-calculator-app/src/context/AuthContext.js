@@ -44,23 +44,49 @@ export const AuthProvider = ({ children }) => {
   // Send OTP to phone number
   const sendOTP = async (phoneNumber, recaptchaVerifier) => {
     try {
+      console.log('Sending OTP to:', phoneNumber);
+      console.log('Recaptcha verifier:', !!recaptchaVerifier);
+      
       // Format phone number with country code if not present
       const formattedNumber = phoneNumber.startsWith('+')
         ? phoneNumber
         : `+91${phoneNumber}`;
+
+      console.log('Formatted number:', formattedNumber);
+
+      // Check if this is a test phone number
+      const testNumbers = ['+918180094312', '8180094312'];
+      const isTestNumber = testNumbers.includes(formattedNumber) || testNumbers.includes(phoneNumber);
+      
+      if (isTestNumber) {
+        console.log('Test phone number detected - OTP should be: 123321');
+      }
 
       const confirmation = await signInWithPhoneNumber(
         auth,
         formattedNumber,
         recaptchaVerifier
       );
+      
+      console.log('OTP sent successfully, verification ID:', confirmation.verificationId);
       setVerificationId(confirmation.verificationId);
       return { success: true, confirmation };
     } catch (error) {
-      console.error('Error sending OTP:', error);
+      console.error('Error sending OTP:', {
+        code: error.code,
+        message: error.message,
+        fullError: error
+      });
+      
+      // Provide more specific error messages
+      let errorMessage = getErrorMessage(error.code);
+      if (error.code === 'auth/invalid-app-credential' || error.message?.includes('reCAPTCHA')) {
+        errorMessage = 'reCAPTCHA verification failed. For testing, please configure reCAPTCHA in Firebase Console or use the test number: 8180094312 with OTP: 123321';
+      }
+      
       return {
         success: false,
-        error: getErrorMessage(error.code),
+        error: errorMessage,
       };
     }
   };
