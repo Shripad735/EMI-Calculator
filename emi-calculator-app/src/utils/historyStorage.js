@@ -1,26 +1,32 @@
+import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const HISTORY_KEY = '@calculation_history';
+import { config } from '../constants/config';
 
 /**
- * Save a calculation to history
- * @param {Object} calculation - Calculation data to save
+ * Save a calculation to history (backend)
+ * @param {Object} calculation - Calculation data to save { type, data, result }
+ * @param {string} token - Auth token (optional, will fetch from storage if not provided)
  */
-export const saveToHistory = async (calculation) => {
+export const saveToHistory = async (calculation, token = null) => {
   try {
-    const history = await getHistory();
-    const newCalculation = {
-      ...calculation,
-      id: Date.now().toString(),
-      timestamp: new Date().toISOString(),
-    };
-    const updatedHistory = [newCalculation, ...history];
+    // Get token if not provided
+    const authToken = token || await AsyncStorage.getItem(config.tokenKey);
     
-    // Keep only last 100 calculations
-    const limitedHistory = updatedHistory.slice(0, 100);
-    
-    await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(limitedHistory));
-    return newCalculation;
+    if (!authToken) {
+      throw new Error('Authentication required');
+    }
+
+    const response = await axios.post(
+      `${config.apiUrl}/calculations`,
+      calculation,
+      {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      }
+    );
+
+    return response.data.calculation;
   } catch (error) {
     console.error('Error saving to history:', error);
     throw error;
@@ -28,13 +34,25 @@ export const saveToHistory = async (calculation) => {
 };
 
 /**
- * Get all calculation history
+ * Get all calculation history from backend
+ * @param {string} token - Auth token (optional, will fetch from storage if not provided)
  * @returns {Array} Array of calculations
  */
-export const getHistory = async () => {
+export const getHistory = async (token = null) => {
   try {
-    const historyJson = await AsyncStorage.getItem(HISTORY_KEY);
-    return historyJson ? JSON.parse(historyJson) : [];
+    const authToken = token || await AsyncStorage.getItem(config.tokenKey);
+    
+    if (!authToken) {
+      return [];
+    }
+
+    const response = await axios.get(`${config.apiUrl}/calculations`, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+
+    return response.data.calculations || [];
   } catch (error) {
     console.error('Error getting history:', error);
     return [];
@@ -44,12 +62,21 @@ export const getHistory = async () => {
 /**
  * Delete a specific calculation from history
  * @param {string} id - Calculation ID to delete
+ * @param {string} token - Auth token (optional, will fetch from storage if not provided)
  */
-export const deleteFromHistory = async (id) => {
+export const deleteFromHistory = async (id, token = null) => {
   try {
-    const history = await getHistory();
-    const updatedHistory = history.filter((item) => item.id !== id);
-    await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(updatedHistory));
+    const authToken = token || await AsyncStorage.getItem(config.tokenKey);
+    
+    if (!authToken) {
+      throw new Error('Authentication required');
+    }
+
+    await axios.delete(`${config.apiUrl}/calculations/${id}`, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
   } catch (error) {
     console.error('Error deleting from history:', error);
     throw error;
@@ -57,26 +84,34 @@ export const deleteFromHistory = async (id) => {
 };
 
 /**
- * Clear all calculation history
+ * Clear all calculation history (not implemented on backend - would delete all)
+ * For now, this is a no-op
  */
 export const clearHistory = async () => {
-  try {
-    await AsyncStorage.removeItem(HISTORY_KEY);
-  } catch (error) {
-    console.error('Error clearing history:', error);
-    throw error;
-  }
+  console.warn('clearHistory is not implemented for backend storage');
 };
 
 /**
  * Get history filtered by calculator type
- * @param {string} type - Calculator type (emi, fd, rd, sip, gst, compare)
+ * @param {string} type - Calculator type (fd, rd, sip, gst)
+ * @param {string} token - Auth token (optional, will fetch from storage if not provided)
  * @returns {Array} Filtered array of calculations
  */
-export const getHistoryByType = async (type) => {
+export const getHistoryByType = async (type, token = null) => {
   try {
-    const history = await getHistory();
-    return history.filter((item) => item.type === type);
+    const authToken = token || await AsyncStorage.getItem(config.tokenKey);
+    
+    if (!authToken) {
+      return [];
+    }
+
+    const response = await axios.get(`${config.apiUrl}/calculations?type=${type}`, {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+
+    return response.data.calculations || [];
   } catch (error) {
     console.error('Error getting history by type:', error);
     return [];
