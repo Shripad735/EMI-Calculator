@@ -55,6 +55,7 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/auth', require('./src/routes/auth'));
 app.use('/plans', require('./src/routes/plans'));
+app.use('/calculations', require('./src/routes/calculations'));
 
 const { notFoundHandler, errorHandler } = require('./src/middleware/errorHandler');
 app.use(notFoundHandler);
