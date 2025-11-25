@@ -29,22 +29,32 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Logout', 
-          style: 'destructive', 
-          onPress: async () => {
-            console.log('Logout button pressed');
-            await logout();
-            console.log('Logout completed');
-          }
-        },
-      ]
-    );
+    // For web compatibility, use window.confirm if Alert doesn't work
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to logout?');
+      if (confirmed) {
+        console.log('Logout confirmed on web');
+        logout();
+        console.log('Logout completed');
+      }
+    } else {
+      Alert.alert(
+        'Logout',
+        'Are you sure you want to logout?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Logout', 
+            style: 'destructive', 
+            onPress: async () => {
+              console.log('Logout button pressed');
+              await logout();
+              console.log('Logout completed');
+            }
+          },
+        ]
+      );
+    }
   };
 
   return (

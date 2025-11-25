@@ -38,8 +38,13 @@ export default function HistoryScreen({ navigation }) {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          await deleteFromHistory(id);
-          loadHistory();
+          try {
+            await deleteFromHistory(id);
+            Alert.alert('Success', 'Calculation deleted successfully');
+            loadHistory();
+          } catch (error) {
+            Alert.alert('Error', 'Failed to delete calculation. Please try again.');
+          }
         },
       },
     ]);
@@ -96,18 +101,19 @@ export default function HistoryScreen({ navigation }) {
 
   const renderHistoryItem = (item) => {
     const { type, data, result } = item;
+    const itemId = item._id || item.id; // Backend uses _id, local storage uses id
 
     return (
-      <View key={item.id} style={styles.historyCard}>
+      <View style={styles.historyCard}>
         <View style={styles.historyHeader}>
           <View style={styles.historyTitleRow}>
             <Text style={styles.historyIcon}>{getCalculatorIcon(type)}</Text>
             <View>
               <Text style={styles.historyTitle}>{getCalculatorName(type)}</Text>
-              <Text style={styles.historyDate}>{formatDate(item.timestamp)}</Text>
+              <Text style={styles.historyDate}>{formatDate(item.createdAt || item.timestamp)}</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteButton}>
+          <TouchableOpacity onPress={() => handleDelete(itemId)} style={styles.deleteButton}>
             <Text style={styles.deleteIcon}>🗑️</Text>
           </TouchableOpacity>
         </View>
@@ -212,7 +218,11 @@ export default function HistoryScreen({ navigation }) {
               <Text style={styles.emptySubtext}>Your saved calculations will appear here</Text>
             </View>
           ) : (
-            history.map(renderHistoryItem)
+            history.map((item) => (
+              <View key={item._id || item.id}>
+                {renderHistoryItem(item)}
+              </View>
+            ))
           )}
         </ScrollView>
       </View>
