@@ -251,7 +251,7 @@ async function loginWithPhone(req, res, next) {
 async function updateProfile(req, res, next) {
   try {
     const { name } = req.body;
-    const userId = req.user._id;
+    const userId = req.userId;
 
     const user = await User.findByIdAndUpdate(
       userId,
