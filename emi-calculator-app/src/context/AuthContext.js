@@ -125,27 +125,33 @@ export const AuthProvider = ({ children }) => {
   // Update user profile (name)
   const updateProfile = async (name) => {
     try {
-      // Update on backend if we have a token
+      // Try to update on backend if we have a token
       if (token) {
-        const response = await axios.put(
-          `${config.apiUrl}/auth/profile`,
-          { name },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        try {
+          const response = await axios.put(
+            `${config.apiUrl}/auth/profile`,
+            { name },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
 
-        const updatedUser = response.data.user;
-        await AsyncStorage.setItem(config.userKey, JSON.stringify(updatedUser));
-        setUser(updatedUser);
-      } else {
-        // Fallback to local storage only
-        const updatedUser = { ...user, name };
-        await AsyncStorage.setItem(config.userKey, JSON.stringify(updatedUser));
-        setUser(updatedUser);
+          const updatedUser = response.data.user;
+          await AsyncStorage.setItem(config.userKey, JSON.stringify(updatedUser));
+          setUser(updatedUser);
+          return { success: true };
+        } catch (backendError) {
+          console.log('Backend update failed, saving locally:', backendError.message);
+          // Fall through to local update
+        }
       }
+      
+      // Fallback to local storage only
+      const updatedUser = { ...user, name };
+      await AsyncStorage.setItem(config.userKey, JSON.stringify(updatedUser));
+      setUser(updatedUser);
 
       return { success: true };
     } catch (error) {
@@ -157,8 +163,12 @@ export const AuthProvider = ({ children }) => {
   // Logout
   const logout = async () => {
     try {
-      // Sign out from Firebase
-      await signOut(auth);
+      // Sign out from Firebase (ignore errors if not signed in)
+      try {
+        await signOut(auth);
+      } catch (firebaseError) {
+        console.log('Firebase signout skipped:', firebaseError.message);
+      }
 
       // Clear stored data
       await AsyncStorage.removeItem(config.tokenKey);
@@ -167,8 +177,14 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setToken(null);
       setVerificationId(null);
+      
+      console.log('Logout successful');
     } catch (error) {
       console.error('Error logging out:', error);
+      // Still clear state even if there's an error
+      setUser(null);
+      setToken(null);
+      setVerificationId(null);
     }
   };
 
