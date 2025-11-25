@@ -1,221 +1,217 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import {
+  signInWithPhoneNumber,
+  PhoneAuthProvider,
+  signInWithCredential,
+  onAuthStateChanged,
+  signOut,
+} from 'firebase/auth';
+import { auth } from '../config/firebase';
 import { config } from '../constants/config';
 
-/**
- * @typedef {import('../types').User} User
- * @typedef {import('../types').AuthResponse} AuthResponse
- */
+const AuthContext = createContext(null);
 
-/**
- * @typedef {Object} AuthContextType
- * @property {User | null} user
- * @property {string | null} token
- * @property {(email: string, password: string) => Promise<void>} login
- * @property {(name: string, email: string, password: string) => Promise<void>} signup
- * @property {() => Promise<void>} logout
- * @property {boolean} loading
- */
-
-const AuthContext = createContext(/** @type {AuthContextType | undefined} */ (undefined));
-
-/**
- * AuthProvider component that manages authentication state
- * @param {Object} props
- * @param {React.ReactNode} props.children
- */
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [verificationId, setVerificationId] = useState(null);
 
-  // Load token from AsyncStorage on app start
+  // Load stored auth data on app start
   useEffect(() => {
     loadStoredAuth();
   }, []);
 
-  /**
-   * Load stored authentication data from AsyncStorage
-   */
+  // Load stored authentication data
   const loadStoredAuth = async () => {
     try {
       const storedToken = await AsyncStorage.getItem(config.tokenKey);
       const storedUser = await AsyncStorage.getItem(config.userKey);
 
       if (storedToken && storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          setToken(storedToken);
-          setUser(parsedUser);
-        } catch (parseError) {
-          console.error('Error parsing stored user data:', parseError);
-          // Clear corrupted data
-          await AsyncStorage.removeItem(config.tokenKey);
-          await AsyncStorage.removeItem(config.userKey);
-        }
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
       }
     } catch (error) {
       console.error('Error loading stored auth:', error);
-      // Clear potentially corrupted data
-      try {
-        await AsyncStorage.removeItem(config.tokenKey);
-        await AsyncStorage.removeItem(config.userKey);
-      } catch (clearError) {
-        console.error('Error clearing auth data:', clearError);
-      }
     } finally {
       setLoading(false);
     }
   };
 
-  /**
-   * Login function that calls backend API
-   * @param {string} email
-   * @param {string} password
-   * @throws {Error} If login fails
-   */
-  const login = async (email, password) => {
+  // Send OTP to phone number
+  const sendOTP = async (phoneNumber, recaptchaVerifier) => {
     try {
-      const response = await axios.post(`${config.apiUrl}/auth/login`, {
-        email,
-        password,
-      }, {
-        timeout: 10000, // 10 second timeout
+      // Format phone number with country code if not present
+      const formattedNumber = phoneNumber.startsWith('+')
+        ? phoneNumber
+        : `+91${phoneNumber}`;
+
+      const confirmation = await signInWithPhoneNumber(
+        auth,
+        formattedNumber,
+        recaptchaVerifier
+      );
+      setVerificationId(confirmation.verificationId);
+      return { success: true, confirmation };
+    } catch (error) {
+      console.error('Error sending OTP:', error);
+      return {
+        success: false,
+        error: getErrorMessage(error.code),
+      };
+    }
+  };
+
+
+  // Verify OTP and sign in with backend
+  const verifyOTP = async (otp, confirmation) => {
+    try {
+      if (!confirmation && !verificationId) {
+        return { success: false, error: 'Please request OTP first' };
+      }
+
+      let result;
+
+      // Use confirmation object if available
+      if (confirmation && confirmation.confirm) {
+        result = await confirmation.confirm(otp);
+      } else if (verificationId) {
+        // Fallback to credential method
+        const credential = PhoneAuthProvider.credential(verificationId, otp);
+        result = await signInWithCredential(auth, credential);
+      } else {
+        return { success: false, error: 'Please request OTP first' };
+      }
+
+      // Get Firebase ID token to send to backend
+      const firebaseToken = await result.user.getIdToken();
+
+      // Sync with backend - create/login user in MongoDB
+      const response = await axios.post(`${config.apiUrl}/auth/login-phone`, {
+        firebaseToken,
       });
 
       const { token: authToken, user: authUser } = response.data;
 
-      // Validate response data
-      if (!authToken || !authUser) {
-        throw new Error('Invalid response from server');
-      }
+      // Store auth data
+      await AsyncStorage.setItem(config.tokenKey, authToken);
+      await AsyncStorage.setItem(config.userKey, JSON.stringify(authUser));
 
-      // Store token and user in AsyncStorage first
-      try {
-        await AsyncStorage.setItem(config.tokenKey, authToken);
-        await AsyncStorage.setItem(config.userKey, JSON.stringify(authUser));
-      } catch (storageError) {
-        console.error('Error storing auth data:', storageError);
-        throw new Error('Failed to save login information. Please try again.');
-      }
-
-      // Update state after successful storage
       setToken(authToken);
       setUser(authUser);
+
+      return { success: true };
     } catch (error) {
-      // Re-throw with a more user-friendly message
-      if (error.code === 'ECONNABORTED') {
-        throw new Error('Request timeout. Please check your internet connection and try again.');
-      } else if (error.response) {
-        throw new Error(error.response.data.message || 'Login failed. Please check your credentials.');
-      } else if (error.request) {
-        throw new Error('Unable to connect to server. Please check your internet connection.');
-      } else {
-        throw new Error(error.message || 'An unexpected error occurred');
+      console.error('Error verifying OTP:', error);
+
+      // Handle backend errors
+      if (error.response) {
+        return {
+          success: false,
+          error: error.response.data.message || 'Verification failed',
+        };
       }
+
+      return {
+        success: false,
+        error: getErrorMessage(error.code),
+      };
     }
   };
 
-  /**
-   * Signup function that calls backend API
-   * @param {string} name
-   * @param {string} email
-   * @param {string} password
-   * @throws {Error} If signup fails
-   */
-  const signup = async (name, email, password) => {
+  // Update user profile (name)
+  const updateProfile = async (name) => {
     try {
-      const response = await axios.post(`${config.apiUrl}/auth/signup`, {
-        name,
-        email,
-        password,
-      }, {
-        timeout: 10000, // 10 second timeout
-      });
+      // Update on backend if we have a token
+      if (token) {
+        const response = await axios.put(
+          `${config.apiUrl}/auth/profile`,
+          { name },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
-      const { token: authToken, user: authUser } = response.data;
-
-      // Validate response data
-      if (!authToken || !authUser) {
-        throw new Error('Invalid response from server');
-      }
-
-      // Store token and user in AsyncStorage first
-      try {
-        await AsyncStorage.setItem(config.tokenKey, authToken);
-        await AsyncStorage.setItem(config.userKey, JSON.stringify(authUser));
-      } catch (storageError) {
-        console.error('Error storing auth data:', storageError);
-        throw new Error('Failed to save signup information. Please try again.');
-      }
-
-      // Update state after successful storage
-      setToken(authToken);
-      setUser(authUser);
-    } catch (error) {
-      // Re-throw with a more user-friendly message
-      if (error.code === 'ECONNABORTED') {
-        throw new Error('Request timeout. Please check your internet connection and try again.');
-      } else if (error.response) {
-        // Handle validation errors with field-specific messages
-        const errorData = error.response.data;
-        if (errorData.errors && errorData.errors.email) {
-          throw new Error(errorData.errors.email);
-        }
-        throw new Error(errorData.message || 'Signup failed. Please try again.');
-      } else if (error.request) {
-        throw new Error('Unable to connect to server. Please check your internet connection.');
+        const updatedUser = response.data.user;
+        await AsyncStorage.setItem(config.userKey, JSON.stringify(updatedUser));
+        setUser(updatedUser);
       } else {
-        throw new Error(error.message || 'An unexpected error occurred');
+        // Fallback to local storage only
+        const updatedUser = { ...user, name };
+        await AsyncStorage.setItem(config.userKey, JSON.stringify(updatedUser));
+        setUser(updatedUser);
       }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      return { success: false, error: 'Failed to update profile' };
     }
   };
 
-  /**
-   * Logout function that clears token and user data
-   */
+  // Logout
   const logout = async () => {
     try {
-      // Clear AsyncStorage first
+      // Sign out from Firebase
+      await signOut(auth);
+
+      // Clear stored data
       await AsyncStorage.removeItem(config.tokenKey);
       await AsyncStorage.removeItem(config.userKey);
-      
-      // Clear state after successful storage clear
-      setToken(null);
+
       setUser(null);
+      setToken(null);
+      setVerificationId(null);
     } catch (error) {
-      console.error('Error during logout:', error);
-      // Even if storage clear fails, clear the state
-      setToken(null);
-      setUser(null);
-      throw new Error('Logout completed but failed to clear stored data');
+      console.error('Error logging out:', error);
     }
   };
 
-  const value = {
-    user,
-    token,
-    login,
-    signup,
-    logout,
-    loading,
+  // Get user-friendly error messages
+  const getErrorMessage = (errorCode) => {
+    switch (errorCode) {
+      case 'auth/invalid-phone-number':
+        return 'Invalid phone number. Please enter a valid number.';
+      case 'auth/too-many-requests':
+        return 'Too many attempts. Please try again later.';
+      case 'auth/invalid-verification-code':
+        return 'Invalid OTP. Please check and try again.';
+      case 'auth/code-expired':
+        return 'OTP has expired. Please request a new one.';
+      case 'auth/network-request-failed':
+        return 'Network error. Please check your connection.';
+      default:
+        return 'An error occurred. Please try again.';
+    }
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        loading,
+        sendOTP,
+        verifyOTP,
+        updateProfile,
+        logout,
+        verificationId,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-/**
- * Custom hook to use the AuthContext
- * @returns {AuthContextType}
- * @throws {Error} If used outside of AuthProvider
- */
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
-
-export default AuthContext;

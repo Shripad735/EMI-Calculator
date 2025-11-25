@@ -76,7 +76,7 @@ export default function DashboardScreen({ navigation }) {
           <View>
             <Text style={styles.title}>Financial Calculators</Text>
             <Text style={styles.subtitle}>
-              {user ? `Welcome back, ${user.name}!` : 'All-in-one financial tools'}
+              {user ? `Welcome${user.name ? `, ${user.name}` : ''}!` : 'All-in-one financial tools'}
             </Text>
           </View>
 
@@ -89,25 +89,20 @@ export default function DashboardScreen({ navigation }) {
               >
                 <Text style={styles.savedPlansButtonText}>📋 My Plans</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-                <Text style={styles.logoutButtonText}>Logout</Text>
+              <TouchableOpacity
+                style={styles.profileButton}
+                onPress={() => navigation.navigate('Profile')}
+              >
+                <Text style={styles.profileButtonText}>👤</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.authButtons}>
-              <TouchableOpacity
-                style={styles.loginButton}
-                onPress={() => navigation.navigate('Login')}
-              >
-                <Text style={styles.loginButtonText}>Login</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.signupButton}
-                onPress={() => navigation.navigate('Signup')}
-              >
-                <Text style={styles.signupButtonText}>Sign Up</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.loginButton}
+              onPress={() => navigation.navigate('Login')}
+            >
+              <Text style={styles.loginButtonText}>Login with Phone</Text>
+            </TouchableOpacity>
           )}
         </View>
 
@@ -206,34 +201,16 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     marginBottom: spacing.base,
   },
-  authButtons: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-  },
   loginButton: {
-    flex: 1,
-    backgroundColor: colors.background,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  loginButtonText: {
-    color: colors.primary,
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  signupButton: {
-    flex: 1,
     backgroundColor: colors.primary,
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
     alignItems: 'center',
+    marginTop: spacing.md,
     ...shadows.sm,
   },
-  signupButtonText: {
+  loginButtonText: {
     color: colors.background,
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.semibold,
@@ -256,18 +233,17 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.semibold,
   },
-  logoutButton: {
-    backgroundColor: colors.error,
+  profileButton: {
+    backgroundColor: colors.backgroundSecondary,
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     alignItems: 'center',
-    ...shadows.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  logoutButtonText: {
-    color: colors.background,
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semibold,
+  profileButtonText: {
+    fontSize: 20,
   },
   section: {
     marginBottom: spacing.xl,

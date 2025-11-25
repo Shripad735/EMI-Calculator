@@ -128,7 +128,7 @@ export default function HomeScreen({ navigation }) {
           <View>
             <Text style={styles.title}>EMI Calculator </Text>  
             <Text style={styles.subtitle}>
-              {user ? `Welcome, ${user.name}` : 'Calculate your loan EMI'}
+              {user ? `Welcome${user.name ? `, ${user.name}` : ''}!` : 'Calculate your loan EMI'}
             </Text>
           </View>
           
@@ -142,27 +142,19 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.savedPlansButtonText}>📋 My Plans</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.logoutButton}
-                onPress={logout}
+                style={styles.profileButton}
+                onPress={() => navigation.navigate('Profile')}
               >
-                <Text style={styles.logoutButtonText}>Logout</Text>
+                <Text style={styles.profileButtonText}>👤</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.authButtons}>
-              <TouchableOpacity
-                style={styles.loginButton}
-                onPress={() => navigation.navigate('Login')}
-              >
-                <Text style={styles.loginButtonText}>Login</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.signupButton}
-                onPress={() => navigation.navigate('Signup')}
-              >
-                <Text style={styles.signupButtonText}>Sign Up</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.loginButton}
+              onPress={() => navigation.navigate('Login')}
+            >
+              <Text style={styles.loginButtonText}>Login with Phone</Text>
+            </TouchableOpacity>
           )}
         </View>
 
@@ -208,11 +200,13 @@ export default function HomeScreen({ navigation }) {
                   style={styles.valueInput}
                   value={loanAmount.toString()}
                   onChangeText={(text) => {
+                    if (text === '') {
+                      setLoanAmount(0);
+                      return;
+                    }
                     const numValue = parseFloat(text.replace(/,/g, '')) || 0;
-                    if (numValue >= 10000 && numValue <= 10000000) {
+                    if (numValue <= 10000000) {
                       setLoanAmount(numValue);
-                    } else if (text === '') {
-                      setLoanAmount(10000);
                     }
                   }}
                   keyboardType="numeric"
@@ -223,7 +217,7 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.formattedValue}>{formatIndianCurrency(loanAmount)}</Text>
             <Slider
               style={styles.slider}
-              minimumValue={10000}
+              minimumValue={0}
               maximumValue={10000000}
               step={10000}
               value={loanAmount}
@@ -233,7 +227,7 @@ export default function HomeScreen({ navigation }) {
               thumbTintColor={colors.primary}
             />
             <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>₹10K</Text>
+              <Text style={styles.sliderLabelText}>₹0</Text>
               <Text style={styles.sliderLabelText}>₹1Cr</Text>
             </View>
           </View>
@@ -250,11 +244,13 @@ export default function HomeScreen({ navigation }) {
                   style={styles.valueInput}
                   value={interestRate.toString()}
                   onChangeText={(text) => {
+                    if (text === '') {
+                      setInterestRate(0);
+                      return;
+                    }
                     const numValue = parseFloat(text) || 0;
-                    if (numValue >= 1 && numValue <= 30) {
+                    if (numValue <= 30) {
                       setInterestRate(numValue);
-                    } else if (text === '') {
-                      setInterestRate(1);
                     }
                   }}
                   keyboardType="decimal-pad"
@@ -265,7 +261,7 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.formattedValue}>{interestRate.toFixed(1)}% per annum</Text>
             <Slider
               style={styles.slider}
-              minimumValue={1}
+              minimumValue={0}
               maximumValue={30}
               step={0.1}
               value={interestRate}
@@ -275,7 +271,7 @@ export default function HomeScreen({ navigation }) {
               thumbTintColor={colors.primary}
             />
             <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>1%</Text>
+              <Text style={styles.sliderLabelText}>0%</Text>
               <Text style={styles.sliderLabelText}>30%</Text>
             </View>
           </View>
@@ -292,12 +288,14 @@ export default function HomeScreen({ navigation }) {
                   style={styles.valueInput}
                   value={tenure.toString()}
                   onChangeText={(text) => {
+                    if (text === '') {
+                      setTenure(0);
+                      return;
+                    }
                     const numValue = parseInt(text) || 0;
                     const maxValue = tenureUnit === 'months' ? 360 : 30;
-                    if (numValue >= 1 && numValue <= maxValue) {
+                    if (numValue <= maxValue) {
                       setTenure(numValue);
-                    } else if (text === '') {
-                      setTenure(1);
                     }
                   }}
                   keyboardType="numeric"
@@ -347,7 +345,7 @@ export default function HomeScreen({ navigation }) {
 
             <Slider
               style={styles.slider}
-              minimumValue={tenureUnit === 'months' ? 1 : 1}
+              minimumValue={0}
               maximumValue={tenureUnit === 'months' ? 360 : 30}
               step={1}
               value={tenure}
@@ -357,11 +355,9 @@ export default function HomeScreen({ navigation }) {
               thumbTintColor={colors.primary}
             />
             <View style={styles.sliderLabels}>
+              <Text style={styles.sliderLabelText}>0</Text>
               <Text style={styles.sliderLabelText}>
-                {tenureUnit === 'months' ? '1 Month' : '1 Year'}
-              </Text>
-              <Text style={styles.sliderLabelText}>
-                {tenureUnit === 'months' ? '30 Years' : '30 Years'}
+                {tenureUnit === 'months' ? '360 Months' : '30 Years'}
               </Text>
             </View>
           </View>
@@ -459,34 +455,16 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     marginBottom: spacing.base,
   },
-  authButtons: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-  },
   loginButton: {
-    flex: 1,
-    backgroundColor: colors.background,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  loginButtonText: {
-    color: colors.primary,
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  signupButton: {
-    flex: 1,
     backgroundColor: colors.primary,
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
     alignItems: 'center',
+    marginTop: spacing.md,
     ...shadows.sm,
   },
-  signupButtonText: {
+  loginButtonText: {
     color: colors.background,
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.semibold,
@@ -509,18 +487,17 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.semibold,
   },
-  logoutButton: {
-    backgroundColor: colors.error,
+  profileButton: {
+    backgroundColor: colors.backgroundSecondary,
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     alignItems: 'center',
-    ...shadows.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  logoutButtonText: {
-    color: colors.background,
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semibold,
+  profileButtonText: {
+    fontSize: 20,
   },
   calculatorCard: {
     backgroundColor: colors.background,

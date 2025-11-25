@@ -1,79 +1,94 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
-  ScrollView,
   StyleSheet,
   Platform,
   KeyboardAvoidingView,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import { firebaseConfig } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
-import { colors, typography, spacing, borderRadius } from '../constants/colors';
-import Button from '../components/Button';
-import Input from '../components/Input';
+import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
 
 export default function LoginScreen({ navigation }) {
-  const { login } = useAuth();
+  const { sendOTP, verifyOTP, updateProfile } = useAuth();
+  const recaptchaVerifier = useRef(null);
 
-  // Form state
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-
-  // UI state
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [otp, setOtp] = useState('');
+  const [name, setName] = useState('');
+  const [step, setStep] = useState('phone'); // 'phone', 'otp', 'name'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [fieldErrors, setFieldErrors] = useState({});
+  const [confirmation, setConfirmation] = useState(null);
 
-  /**
-   * Validate form inputs
-   * @returns {boolean} True if valid, false otherwise
-   */
-  const validateForm = () => {
-    const errors = {};
-
-    // Email validation
-    if (!email.trim()) {
-      errors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errors.email = 'Please enter a valid email address';
-    }
-
-    // Password validation
-    if (!password) {
-      errors.password = 'Password is required';
-    }
-
-    setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  /**
-   * Handle login form submission
-   */
-  const handleLogin = async () => {
-    // Clear previous errors
-    setError('');
-    setFieldErrors({});
-
-    // Validate form
-    if (!validateForm()) {
+  const handleSendOTP = async () => {
+    if (!phoneNumber || phoneNumber.length < 10) {
+      setError('Please enter a valid 10-digit phone number');
       return;
     }
 
-    // Set loading state
     setLoading(true);
+    setError('');
 
     try {
-      // Call login function from AuthContext
-      await login(email, password);
-      // Navigation will be handled by the navigation structure based on auth state
+      const result = await sendOTP(phoneNumber, recaptchaVerifier.current);
+      if (result.success) {
+        setConfirmation(result.confirmation);
+        setStep('otp');
+      } else {
+        setError(result.error);
+      }
     } catch (err) {
-      // Display error message from backend
-      setError(err.message || 'Login failed. Please try again.');
+      console.error('Send OTP error:', err);
+      setError('Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (!otp || otp.length !== 6) {
+      setError('Please enter a valid 6-digit OTP');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const result = await verifyOTP(otp, confirmation);
+      if (result.success) {
+        setStep('name');
+      } else {
+        setError(result.error);
+      }
+    } catch (err) {
+      console.error('Verify OTP error:', err);
+      setError('Failed to verify OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveName = async () => {
+    setLoading(true);
+    
+    if (name.trim()) {
+      await updateProfile(name.trim());
+    }
+    
+    setLoading(false);
+    navigation.navigate('Dashboard');
+  };
+
+  const handleSkipName = () => {
+    navigation.navigate('Dashboard');
   };
 
   return (
@@ -81,70 +96,162 @@ export default function LoginScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={firebaseConfig}
+        attemptInvisibleVerification={true}
+      />
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.content}>
-          {/* Header */}
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Log in to your account</Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>
+            {step === 'phone' && 'Login with Phone'}
+            {step === 'otp' && 'Verify OTP'}
+            {step === 'name' && 'Your Profile'}
+          </Text>
+        </View>
 
-          {/* Error Message */}
-          {error ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorMessage}>{error}</Text>
+        {/* Phone Number Step */}
+        {step === 'phone' && (
+          <View style={styles.formContainer}>
+            <Text style={styles.subtitle}>
+              Enter your mobile number to receive a verification code
+            </Text>
+
+            <View style={styles.phoneInputContainer}>
+              <View style={styles.countryCode}>
+                <Text style={styles.countryCodeText}>+91</Text>
+              </View>
+              <TextInput
+                style={styles.phoneInput}
+                value={phoneNumber}
+                onChangeText={(text) => {
+                  setPhoneNumber(text.replace(/[^0-9]/g, '').slice(0, 10));
+                  setError('');
+                }}
+                placeholder="Enter mobile number"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="phone-pad"
+                maxLength={10}
+              />
             </View>
-          ) : null}
 
-          {/* Email Input */}
-          <Input
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Enter your email"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            editable={!loading}
-            error={fieldErrors.email}
-          />
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          {/* Password Input */}
-          <Input
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Enter your password"
-            secureTextEntry
-            autoCapitalize="none"
-            autoComplete="password"
-            editable={!loading}
-            error={fieldErrors.password}
-          />
-
-          {/* Login Button */}
-          <Button
-            title="Log In"
-            onPress={handleLogin}
-            variant="primary"
-            size="large"
-            fullWidth
-            loading={loading}
-            style={styles.loginButton}
-          />
-
-          {/* Signup Link */}
-          <View style={styles.signupContainer}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
             <TouchableOpacity
-              onPress={() => navigation.navigate('Signup')}
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleSendOTP}
               disabled={loading}
             >
-              <Text style={styles.signupLink}>Sign Up</Text>
+              {loading ? (
+                <ActivityIndicator color={colors.background} />
+              ) : (
+                <Text style={styles.buttonText}>Send OTP</Text>
+              )}
             </TouchableOpacity>
           </View>
-        </View>
+        )}
+
+        {/* OTP Verification Step */}
+        {step === 'otp' && (
+          <View style={styles.formContainer}>
+            <Text style={styles.subtitle}>
+              Enter the 6-digit code sent to +91 {phoneNumber}
+            </Text>
+
+            <TextInput
+              style={styles.otpInput}
+              value={otp}
+              onChangeText={(text) => {
+                setOtp(text.replace(/[^0-9]/g, '').slice(0, 6));
+                setError('');
+              }}
+              placeholder="Enter OTP"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="number-pad"
+              maxLength={6}
+            />
+
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleVerifyOTP}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.background} />
+              ) : (
+                <Text style={styles.buttonText}>Verify OTP</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.resendButton}
+              onPress={() => {
+                setStep('phone');
+                setOtp('');
+                setError('');
+              }}
+            >
+              <Text style={styles.resendText}>Change phone number</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Name Step (Optional) */}
+        {step === 'name' && (
+          <View style={styles.formContainer}>
+            <View style={styles.successIcon}>
+              <Text style={styles.successEmoji}>✓</Text>
+            </View>
+            <Text style={styles.successText}>Phone verified successfully!</Text>
+            
+            <Text style={styles.subtitle}>
+              Add your name (optional)
+            </Text>
+
+            <TextInput
+              style={styles.nameInput}
+              value={name}
+              onChangeText={setName}
+              placeholder="Enter your name"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="words"
+            />
+
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleSaveName}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.background} />
+              ) : (
+                <Text style={styles.buttonText}>
+                  {name.trim() ? 'Save & Continue' : 'Continue'}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.skipButton}
+              onPress={handleSkipName}
+            >
+              <Text style={styles.skipText}>Skip for now</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -153,57 +260,152 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.backgroundSecondary,
   },
   scrollContent: {
     flexGrow: 1,
-  },
-  content: {
-    flex: 1,
     padding: spacing.lg,
-    paddingTop: Platform.OS === 'ios' ? 80 : 60,
-    justifyContent: 'center',
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing['2xl'],
+  },
+  backButton: {
+    marginRight: spacing.md,
+  },
+  backIcon: {
+    fontSize: 28,
+    color: colors.text,
   },
   title: {
-    fontSize: typography.fontSize['4xl'],
+    fontSize: typography.fontSize['2xl'],
     fontWeight: typography.fontWeight.bold,
     color: colors.text,
-    marginBottom: spacing.sm,
+  },
+  formContainer: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    ...shadows.base,
   },
   subtitle: {
     fontSize: typography.fontSize.base,
-    color: colors.textLight,
-    marginBottom: spacing['2xl'],
+    color: colors.textSecondary,
+    marginBottom: spacing.xl,
+    textAlign: 'center',
   },
-  errorContainer: {
-    backgroundColor: colors.errorLight,
-    borderRadius: borderRadius.base,
-    padding: spacing.md,
+  phoneInputContainer: {
+    flexDirection: 'row',
     marginBottom: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.error,
   },
-  errorMessage: {
+  countryCode: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.base,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  countryCodeText: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.text,
+  },
+  phoneInput: {
+    flex: 1,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.base,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: typography.fontSize.lg,
+    color: colors.text,
+  },
+  otpInput: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.base,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.lg,
+    fontSize: typography.fontSize['2xl'],
+    color: colors.text,
+    textAlign: 'center',
+    letterSpacing: 10,
+    marginBottom: spacing.lg,
+  },
+  nameInput: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.base,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: typography.fontSize.lg,
+    color: colors.text,
+    marginBottom: spacing.lg,
+  },
+  button: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    ...shadows.sm,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+  buttonText: {
+    color: colors.background,
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  errorText: {
     color: colors.error,
     fontSize: typography.fontSize.sm,
+    marginBottom: spacing.md,
     textAlign: 'center',
+  },
+  resendButton: {
+    marginTop: spacing.lg,
+    alignItems: 'center',
+  },
+  resendText: {
+    color: colors.primary,
+    fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.medium,
   },
-  loginButton: {
-    marginTop: spacing.md,
-  },
-  signupContainer: {
-    flexDirection: 'row',
+  successIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.success,
     justifyContent: 'center',
-    marginTop: spacing.lg,
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: spacing.lg,
   },
-  signupText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.textLight,
+  successEmoji: {
+    fontSize: 40,
+    color: colors.background,
   },
-  signupLink: {
-    fontSize: typography.fontSize.sm,
-    color: colors.primary,
-    fontWeight: typography.fontWeight.semibold,
+  successText: {
+    fontSize: typography.fontSize.xl,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.success,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  skipButton: {
+    marginTop: spacing.md,
+    alignItems: 'center',
+  },
+  skipText: {
+    color: colors.textMuted,
+    fontSize: typography.fontSize.base,
   },
 });

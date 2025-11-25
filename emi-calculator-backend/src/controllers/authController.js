@@ -1,10 +1,11 @@
 const User = require('../models/User');
 const { hashPassword, verifyPassword } = require('../utils/password');
 const { generateToken } = require('../utils/jwt');
+const { verifyFirebaseToken } = require('../config/firebase');
 
 /**
  * Authentication controller
- * Handles user signup and login
+ * Handles user signup, login, and phone authentication
  */
 
 /**
@@ -149,7 +150,140 @@ async function login(req, res, next) {
   }
 }
 
+/**
+ * Login with phone number using Firebase token
+ * POST /auth/login-phone
+ */
+async function loginWithPhone(req, res, next) {
+  try {
+    const { firebaseToken, name } = req.body;
+
+    // Validate required fields
+    if (!firebaseToken) {
+      return res.status(400).json({
+        message: 'Validation failed',
+        errors: {
+          firebaseToken: 'Firebase token is required',
+        },
+      });
+    }
+
+    // Verify Firebase token
+    const tokenResult = await verifyFirebaseToken(firebaseToken);
+
+    if (!tokenResult.success) {
+      return res.status(401).json({
+        message: 'Invalid or expired token',
+        error: tokenResult.error,
+      });
+    }
+
+    const { uid, phoneNumber } = tokenResult;
+
+    if (!phoneNumber) {
+      return res.status(400).json({
+        message: 'Phone number not found in token',
+      });
+    }
+
+    // Find existing user by phone or Firebase UID
+    let user = await User.findOne({
+      $or: [{ phone: phoneNumber }, { firebaseUid: uid }],
+    }).catch((err) => {
+      console.error('Database error finding user:', err);
+      throw new Error('Database error. Please try again later.');
+    });
+
+    // Create new user if not exists
+    if (!user) {
+      user = new User({
+        name: name || '',
+        phone: phoneNumber,
+        firebaseUid: uid,
+        authProvider: 'phone',
+      });
+
+      await user.save().catch((err) => {
+        console.error('Database error saving user:', err);
+        throw new Error('Failed to create user. Please try again.');
+      });
+    } else {
+      // Update Firebase UID if not set
+      if (!user.firebaseUid) {
+        user.firebaseUid = uid;
+        await user.save();
+      }
+      // Update name if provided and user has no name
+      if (name && !user.name) {
+        user.name = name;
+        await user.save();
+      }
+    }
+
+    // Generate JWT token
+    const token = generateToken(user._id.toString());
+
+    // Return user data and token
+    res.status(200).json({
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        authProvider: user.authProvider,
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error('Phone login error:', {
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    });
+    next(error);
+  }
+}
+
+/**
+ * Update user profile
+ * PUT /auth/profile
+ */
+async function updateProfile(req, res, next) {
+  try {
+    const { name } = req.body;
+    const userId = req.user._id;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { name },
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'User not found',
+      });
+    }
+
+    res.status(200).json({
+      user: {
+        _id: user._id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        authProvider: user.authProvider,
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    next(error);
+  }
+}
+
 module.exports = {
   signup,
-  login
+  login,
+  loginWithPhone,
+  updateProfile,
 };

@@ -8,7 +8,6 @@ import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import DashboardScreen from '../screens/DashboardScreen';
 import HomeScreen from '../screens/HomeScreen';
 import LoginScreen from '../screens/LoginScreen';
-import SignupScreen from '../screens/SignupScreen';
 import SavedPlansScreen from '../screens/SavedPlansScreen';
 import CompareLoanScreen from '../screens/CompareLoanScreen';
 import HistoryScreen from '../screens/HistoryScreen';
@@ -16,12 +15,13 @@ import FDCalculatorScreen from '../screens/FDCalculatorScreen';
 import RDCalculatorScreen from '../screens/RDCalculatorScreen';
 import SIPCalculatorScreen from '../screens/SIPCalculatorScreen';
 import GSTCalculatorScreen from '../screens/GSTCalculatorScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
 /**
  * AuthStack - Navigation stack for unauthenticated users
- * Contains: Dashboard, All Calculators, Login, Signup
+ * Contains: Dashboard, All Calculators, Login (Phone OTP)
  */
 function AuthStack() {
   return (
@@ -38,14 +38,13 @@ function AuthStack() {
       <Stack.Screen name="SIPCalculator" component={SIPCalculatorScreen} />
       <Stack.Screen name="GSTCalculator" component={GSTCalculatorScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Signup" component={SignupScreen} />
     </Stack.Navigator>
   );
 }
 
 /**
  * MainStack - Navigation stack for authenticated users
- * Contains: Dashboard, All Calculators, SavedPlans, History
+ * Contains: Dashboard, All Calculators, SavedPlans, History, Profile
  */
 function MainStack() {
   return (
@@ -63,6 +62,7 @@ function MainStack() {
       <Stack.Screen name="SIPCalculator" component={SIPCalculatorScreen} />
       <Stack.Screen name="GSTCalculator" component={GSTCalculatorScreen} />
       <Stack.Screen name="SavedPlans" component={SavedPlansScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
     </Stack.Navigator>
   );
 }

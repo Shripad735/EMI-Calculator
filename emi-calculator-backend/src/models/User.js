@@ -3,37 +3,54 @@ const mongoose = require('mongoose');
 /**
  * User Schema
  * Stores user account information with authentication credentials
+ * Supports both email/password and phone number authentication
  */
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Name is required'],
     trim: true,
     minlength: [2, 'Name must be at least 2 characters long'],
-    maxlength: [100, 'Name cannot exceed 100 characters']
+    maxlength: [100, 'Name cannot exceed 100 characters'],
+    default: '',
   },
   email: {
     type: String,
-    required: [true, 'Email is required'],
     lowercase: true,
     trim: true,
+    sparse: true, // Allow null/undefined for phone-only users
     match: [
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-      'Please provide a valid email address'
-    ]
+      'Please provide a valid email address',
+    ],
   },
   passwordHash: {
     type: String,
-    required: [true, 'Password hash is required']
+    // Not required for phone auth users
+  },
+  phone: {
+    type: String,
+    trim: true,
+    sparse: true, // Allow null/undefined for email-only users
+  },
+  firebaseUid: {
+    type: String,
+    sparse: true, // Firebase UID for phone auth users
+  },
+  authProvider: {
+    type: String,
+    enum: ['email', 'phone'],
+    default: 'email',
   },
   createdAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
-// Create index on email for faster lookups and to enforce uniqueness
-userSchema.index({ email: 1 }, { unique: true });
+// Create indexes for faster lookups
+userSchema.index({ email: 1 }, { unique: true, sparse: true });
+userSchema.index({ phone: 1 }, { unique: true, sparse: true });
+userSchema.index({ firebaseUid: 1 }, { unique: true, sparse: true });
 
 // Ensure password hash is never returned in JSON responses
 userSchema.set('toJSON', {
