@@ -6,7 +6,7 @@ const {
   loginValidation, 
   checkValidation 
 } = require('../middleware/validators');
-const { authenticate } = require('../middleware/auth');
+const authenticate = require('../middleware/auth');
 
 /**
  * Authentication routes
