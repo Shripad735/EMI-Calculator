@@ -7,14 +7,17 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
+  Alert,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { calculateRD } from '../utils/rdCalculator';
 import { formatIndianCurrency } from '../utils/currencyFormatter';
 import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
 import { saveToHistory } from '../utils/historyStorage';
+import { useAuth } from '../context/AuthContext';
 
 export default function RDCalculatorScreen({ navigation }) {
+  const { user } = useAuth();
   const [monthlyDeposit, setMonthlyDeposit] = useState(5000);
   const [interestRate, setInterestRate] = useState(6.5);
   const [tenure, setTenure] = useState(12);
@@ -160,8 +163,19 @@ export default function RDCalculatorScreen({ navigation }) {
             <TouchableOpacity
               style={styles.saveButton}
               onPress={async () => {
-                await saveToHistory({ type: 'rd', data: { monthlyDeposit, interestRate, tenure }, result });
-                alert('Saved to history!');
+                if (!user) {
+                  Alert.alert('Login Required', 'Please login to save your calculations to history.', [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Login', onPress: () => navigation.navigate('Login') }
+                  ]);
+                  return;
+                }
+                try {
+                  await saveToHistory({ type: 'rd', data: { monthlyDeposit, interestRate, tenure }, result });
+                  Alert.alert('Success', 'Saved to history successfully!');
+                } catch (error) {
+                  Alert.alert('Error', 'Failed to save to history. Please try again.');
+                }
               }}
             >
               <Text style={styles.saveButtonText}>💾 Save to History</Text>

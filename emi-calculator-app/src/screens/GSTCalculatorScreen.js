@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, Alert } from 'react-native';
 import { calculateGST } from '../utils/gstCalculator';
 import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
 import { saveToHistory } from '../utils/historyStorage';
+import { useAuth } from '../context/AuthContext';
 
 export default function GSTCalculatorScreen({ navigation }) {
+  const { user } = useAuth();
   const [amount, setAmount] = useState('10000');
   const [gstRate, setGstRate] = useState('18');
   const [isAddGST, setIsAddGST] = useState(true);
@@ -109,8 +111,19 @@ export default function GSTCalculatorScreen({ navigation }) {
             <TouchableOpacity
               style={styles.saveButton}
               onPress={async () => {
-                await saveToHistory({ type: 'gst', data: { amount, gstRate, isAddGST }, result });
-                alert('Saved to history!');
+                if (!user) {
+                  Alert.alert('Login Required', 'Please login to save your calculations to history.', [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Login', onPress: () => navigation.navigate('Login') }
+                  ]);
+                  return;
+                }
+                try {
+                  await saveToHistory({ type: 'gst', data: { amount, gstRate, isAddGST }, result });
+                  Alert.alert('Success', 'Saved to history successfully!');
+                } catch (error) {
+                  Alert.alert('Error', 'Failed to save to history. Please try again.');
+                }
               }}
             >
               <Text style={styles.saveButtonText}>💾 Save to History</Text>

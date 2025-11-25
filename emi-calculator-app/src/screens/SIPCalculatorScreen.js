@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, Alert } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { calculateSIP } from '../utils/sipCalculator';
 import { formatIndianCurrency } from '../utils/currencyFormatter';
 import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
 import { saveToHistory } from '../utils/historyStorage';
+import { useAuth } from '../context/AuthContext';
 
 export default function SIPCalculatorScreen({ navigation }) {
+  const { user } = useAuth();
   const [monthlyInvestment, setMonthlyInvestment] = useState(5000);
   const [expectedReturn, setExpectedReturn] = useState(12);
   const [tenureYears, setTenureYears] = useState(10);
@@ -71,7 +73,21 @@ export default function SIPCalculatorScreen({ navigation }) {
               <View style={styles.detailDivider} />
               <View style={styles.detailRow}><Text style={styles.detailLabel}>Estimated Returns</Text><Text style={[styles.detailValue, styles.interestValue]}>{formatIndianCurrency(result.estimatedReturns)}</Text></View>
             </View>
-            <TouchableOpacity style={styles.saveButton} onPress={async () => { await saveToHistory({ type: 'sip', data: { monthlyInvestment, expectedReturn, tenureYears }, result }); alert('Saved to history!'); }}>
+            <TouchableOpacity style={styles.saveButton} onPress={async () => {
+              if (!user) {
+                Alert.alert('Login Required', 'Please login to save your calculations to history.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Login', onPress: () => navigation.navigate('Login') }
+                ]);
+                return;
+              }
+              try {
+                await saveToHistory({ type: 'sip', data: { monthlyInvestment, expectedReturn, tenureYears }, result });
+                Alert.alert('Success', 'Saved to history successfully!');
+              } catch (error) {
+                Alert.alert('Error', 'Failed to save to history. Please try again.');
+              }
+            }}>
               <Text style={styles.saveButtonText}>💾 Save to History</Text>
             </TouchableOpacity>
           </View>
