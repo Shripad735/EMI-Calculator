@@ -26,6 +26,16 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [confirmation, setConfirmation] = useState(null);
+  const [firebaseReady, setFirebaseReady] = useState(false);
+
+  // Ensure Firebase is ready before rendering
+  useEffect(() => {
+    // Small delay to ensure Firebase is fully initialized
+    const timer = setTimeout(() => {
+      setFirebaseReady(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSendOTP = async () => {
     if (!phoneNumber || phoneNumber.length < 10) {
@@ -96,11 +106,13 @@ export default function LoginScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={firebaseConfig}
-        attemptInvisibleVerification={true}
-      />
+      {firebaseReady && (
+        <FirebaseRecaptchaVerifierModal
+          ref={recaptchaVerifier}
+          firebaseConfig={firebaseConfig}
+          attemptInvisibleVerification={true}
+        />
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}

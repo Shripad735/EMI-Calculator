@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -21,23 +22,33 @@ const firebaseConfig = {
 
 // Initialize Firebase App (only once)
 let app;
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig);
-  console.log('Firebase app initialized');
-} else {
-  app = getApp();
-  console.log('Firebase app already initialized');
-}
-
-// Get Auth instance - must be called after app initialization
 let auth;
+
 try {
-  auth = getAuth(app);
-  console.log('Firebase auth initialized');
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+    console.log('Firebase app initialized');
+    
+    // Initialize Auth with persistence
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage)
+    });
+    console.log('Firebase auth initialized with persistence');
+  } else {
+    app = getApp();
+    auth = getAuth(app);
+    console.log('Firebase app already initialized, reusing instance');
+  }
 } catch (error) {
-  console.error('Firebase auth initialization error:', error);
-  // Create a fallback - this shouldn't happen but prevents crashes
-  auth = getAuth();
+  console.error('Firebase initialization error:', error);
+  // If there's an error, try to get existing instances
+  if (getApps().length > 0) {
+    app = getApp();
+    auth = getAuth(app);
+    console.log('Recovered from error using existing Firebase instance');
+  } else {
+    throw error;
+  }
 }
 
 export { app, firebaseConfig, auth };
