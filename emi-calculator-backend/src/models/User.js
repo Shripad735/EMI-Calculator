@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
  * User Schema
  * Stores user account information with authentication credentials
  * Supports both email/password and phone number authentication
+ * Updated: Allow empty name for phone auth users
  */
 const userSchema = new mongoose.Schema({
   name: {
