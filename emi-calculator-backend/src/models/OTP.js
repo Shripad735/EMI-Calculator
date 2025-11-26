@@ -32,9 +32,8 @@ const otpSchema = new mongoose.Schema({
   },
 });
 
-// Index for faster lookups and TTL
+// Index for faster lookups
 otpSchema.index({ phone: 1, createdAt: -1 });
-otpSchema.index({ createdAt: 1 }, { expireAfterSeconds: 180 });
 
 const OTP = mongoose.model('OTP', otpSchema);
 
