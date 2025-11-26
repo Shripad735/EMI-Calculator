@@ -57,21 +57,17 @@ const CustomSlider = ({
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt) => {
-        // Handle tap on track
-        const touchX = evt.nativeEvent.locationX - thumbSize / 2;
-        const clampedX = Math.max(0, Math.min(touchX, sliderWidth - thumbSize));
-        position.setValue(clampedX);
-        const newValue = getValueFromPosition(clampedX);
-        if (onValueChange) {
-          onValueChange(newValue);
-        }
+      onPanResponderGrant: (evt, gestureState) => {
+        // Store the initial position when touch starts
+        gestureState.x0 = getPositionFromValue(value);
       },
       onPanResponderMove: (evt, gestureState) => {
-        const currentPosition = getPositionFromValue(value);
-        let newPosition = currentPosition + gestureState.dx;
+        if (sliderWidth === 0) return;
+        
+        // Calculate new position based on initial position + drag distance
+        let newPosition = gestureState.x0 + gestureState.dx;
         newPosition = Math.max(0, Math.min(newPosition, sliderWidth - thumbSize));
-        position.setValue(newPosition);
+        
         const newValue = getValueFromPosition(newPosition);
         if (onValueChange) {
           onValueChange(newValue);

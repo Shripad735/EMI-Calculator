@@ -20,24 +20,19 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
   useEffect(() => {
     if (Platform.OS === 'web') {
       // Create a hidden div for reCAPTCHA on web
-      const recaptchaContainer = document.getElementById('recaptcha-container');
+      const recaptchaContainer = document.getElementById('recaptcha-container-web');
       if (!recaptchaContainer) {
         const div = document.createElement('div');
-        div.id = 'recaptcha-container';
-        div.style.display = 'none';
+        div.id = 'recaptcha-container-web';
         document.body.appendChild(div);
       }
-    }
-  }, []);
 
-  // Create the application verifier interface that Firebase expects
-  const createVerifier = useCallback(() => {
-    if (Platform.OS === 'web') {
-      // For web, create Firebase's RecaptchaVerifier
+      // Initialize RecaptchaVerifier for web
       if (!webRecaptchaVerifier.current) {
         try {
           const auth = getAuth();
-          webRecaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          console.log('Creating RecaptchaVerifier for web...');
+          webRecaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container-web', {
             size: 'invisible',
             callback: (response) => {
               console.log('reCAPTCHA solved on web');
@@ -52,10 +47,29 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
               }
             }
           });
+          console.log('RecaptchaVerifier created successfully');
         } catch (error) {
           console.error('Error creating RecaptchaVerifier:', error);
         }
       }
+    }
+
+    return () => {
+      // Cleanup on unmount
+      if (Platform.OS === 'web' && webRecaptchaVerifier.current) {
+        try {
+          webRecaptchaVerifier.current.clear();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
+    };
+  }, [onVerify, onError]);
+
+  // Create the application verifier interface that Firebase expects
+  const createVerifier = useCallback(() => {
+    if (Platform.OS === 'web') {
+      // For web, return the RecaptchaVerifier instance
       return webRecaptchaVerifier.current;
     } else {
       // For mobile, return custom verifier that shows WebView
@@ -71,7 +85,7 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
         }
       };
     }
-  }, [onVerify, onError]);
+  }, []);
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => {
@@ -238,9 +252,9 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
     </html>
   `;
 
-  // For web platform, render a hidden container
+  // For web platform, don't render anything (div is created in useEffect)
   if (Platform.OS === 'web') {
-    return <div id="recaptcha-container" style={{ display: 'none' }} />;
+    return null;
   }
 
   // For mobile platforms, render modal with WebView
