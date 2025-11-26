@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,14 +10,11 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import WebRecaptcha from '../components/WebRecaptcha';
-import { app, firebaseConfig } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
 
 export default function LoginScreen({ navigation }) {
-  const { sendOTP, verifyOTP, updateProfile } = useAuth();
-  const recaptchaRef = useRef(null);
+  const { sendOTP, verifyOTP, resendOTP, updateProfile } = useAuth();
 
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState('');
@@ -25,12 +22,7 @@ export default function LoginScreen({ navigation }) {
   const [step, setStep] = useState('phone'); // 'phone', 'otp', 'name'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [confirmation, setConfirmation] = useState(null);
-
-  // Log Firebase app status on mount
-  useEffect(() => {
-    console.log('LoginScreen mounted, Firebase app:', app?.name);
-  }, []);
+  const [testOtp, setTestOtp] = useState(''); // For displaying test OTP
 
   const handleSendOTP = async () => {
     if (!phoneNumber || phoneNumber.length < 10) {
@@ -42,11 +34,14 @@ export default function LoginScreen({ navigation }) {
     setError('');
 
     try {
-      // Use the WebRecaptcha component ref
-      const result = await sendOTP(phoneNumber, recaptchaRef.current);
+      const result = await sendOTP(phoneNumber);
       if (result.success) {
-        setConfirmation(result.confirmation);
         setStep('otp');
+        // For testing - show OTP in development
+        if (result.otp) {
+          setTestOtp(result.otp);
+          console.log('Test OTP:', result.otp);
+        }
       } else {
         setError(result.error);
       }
@@ -68,7 +63,7 @@ export default function LoginScreen({ navigation }) {
     setError('');
 
     try {
-      const result = await verifyOTP(otp, confirmation);
+      const result = await verifyOTP(phoneNumber, otp);
       if (result.success) {
         setStep('name');
       } else {
@@ -77,6 +72,29 @@ export default function LoginScreen({ navigation }) {
     } catch (err) {
       console.error('Verify OTP error:', err);
       setError('Failed to verify OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const result = await resendOTP(phoneNumber);
+      if (result.success) {
+        setError(''); // Clear any previous errors
+        if (result.otp) {
+          setTestOtp(result.otp);
+          console.log('Resent OTP:', result.otp);
+        }
+      } else {
+        setError(result.error);
+      }
+    } catch (err) {
+      console.error('Resend OTP error:', err);
+      setError('Failed to resend OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -102,18 +120,6 @@ export default function LoginScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* Web reCAPTCHA container - invisible */}
-      {Platform.OS === 'web' && <View nativeID="recaptcha-container" />}
-      
-      {/* Mobile WebRecaptcha component */}
-      {Platform.OS !== 'web' && (
-        <WebRecaptcha
-          ref={recaptchaRef}
-          firebaseConfig={firebaseConfig}
-          onError={(err) => setError(err.message)}
-        />
-      )}
-
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -181,6 +187,14 @@ export default function LoginScreen({ navigation }) {
               Enter the 6-digit code sent to +91 {phoneNumber}
             </Text>
 
+            {/* Test OTP display - remove in production */}
+            {testOtp ? (
+              <View style={styles.testOtpContainer}>
+                <Text style={styles.testOtpLabel}>Test OTP:</Text>
+                <Text style={styles.testOtpValue}>{testOtp}</Text>
+              </View>
+            ) : null}
+
             <TextInput
               style={styles.otpInput}
               value={otp}
@@ -208,16 +222,27 @@ export default function LoginScreen({ navigation }) {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.resendButton}
-              onPress={() => {
-                setStep('phone');
-                setOtp('');
-                setError('');
-              }}
-            >
-              <Text style={styles.resendText}>Change phone number</Text>
-            </TouchableOpacity>
+            <View style={styles.resendContainer}>
+              <TouchableOpacity
+                style={styles.resendButton}
+                onPress={handleResendOTP}
+                disabled={loading}
+              >
+                <Text style={styles.resendText}>Resend OTP</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.resendButton}
+                onPress={() => {
+                  setStep('phone');
+                  setOtp('');
+                  setError('');
+                  setTestOtp('');
+                }}
+              >
+                <Text style={styles.resendText}>Change number</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -382,9 +407,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     textAlign: 'center',
   },
-  resendButton: {
+  resendContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginTop: spacing.lg,
-    alignItems: 'center',
+  },
+  resendButton: {
+    padding: spacing.sm,
   },
   resendText: {
     color: colors.primary,
@@ -419,5 +448,27 @@ const styles = StyleSheet.create({
   skipText: {
     color: colors.textMuted,
     fontSize: typography.fontSize.base,
+  },
+  testOtpContainer: {
+    backgroundColor: '#fff3cd',
+    borderRadius: borderRadius.base,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ffc107',
+  },
+  testOtpLabel: {
+    fontSize: typography.fontSize.sm,
+    color: '#856404',
+    marginRight: spacing.sm,
+  },
+  testOtpValue: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: '#856404',
+    letterSpacing: 2,
   },
 });

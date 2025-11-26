@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { signup, login, loginWithPhone, updateProfile } = require('../controllers/authController');
+const { sendOTP, verifyOTP, resendOTP } = require('../controllers/otpController');
 const { 
   signupValidation, 
   loginValidation, 
@@ -26,9 +27,27 @@ router.post('/login', loginValidation, checkValidation, login);
 
 /**
  * POST /auth/login-phone
- * Login with phone number using Firebase token
+ * Login with phone number using Firebase token (legacy)
  */
 router.post('/login-phone', loginWithPhone);
+
+/**
+ * POST /auth/send-otp
+ * Send OTP to phone number
+ */
+router.post('/send-otp', sendOTP);
+
+/**
+ * POST /auth/verify-otp
+ * Verify OTP and login/register user
+ */
+router.post('/verify-otp', verifyOTP);
+
+/**
+ * POST /auth/resend-otp
+ * Resend OTP to phone number
+ */
+router.post('/resend-otp', resendOTP);
 
 /**
  * PUT /auth/profile

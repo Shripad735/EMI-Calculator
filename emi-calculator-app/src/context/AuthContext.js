@@ -1,19 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import {
-  signInWithPhoneNumber,
-  PhoneAuthProvider,
-  signInWithCredential,
-  signOut,
-} from 'firebase/auth';
-import { auth } from '../config/firebase';
 import { config } from '../constants/config';
-
-// Check if auth is available
-const isAuthAvailable = () => {
-  return auth !== null && auth !== undefined;
-};
 
 const AuthContext = createContext(null);
 
@@ -21,7 +9,6 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [verificationId, setVerificationId] = useState(null);
 
   // Load stored auth data on app start
   useEffect(() => {
@@ -46,138 +33,108 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Send OTP to phone number
-  const sendOTP = async (phoneNumber, recaptchaRef) => {
+  const sendOTP = async (phoneNumber) => {
     try {
-      // Check if Firebase auth is available
-      if (!isAuthAvailable()) {
-        console.error('Firebase auth is not available');
-        return {
-          success: false,
-          error: 'Authentication service is not available. Please try again later.',
-        };
-      }
-      
       console.log('Sending OTP to:', phoneNumber);
-      console.log('Auth object:', !!auth);
-      console.log('RecaptchaRef:', !!recaptchaRef);
       
-      // Format phone number with country code if not present
-      const formattedNumber = phoneNumber.startsWith('+')
-        ? phoneNumber
-        : `+91${phoneNumber}`;
+      const response = await axios.post(`${config.apiUrl}/auth/send-otp`, {
+        phone: phoneNumber,
+      });
 
-      console.log('Formatted number:', formattedNumber);
+      console.log('Send OTP response:', response.data);
 
-      // Check if this is a test phone number
-      const testNumbers = ['+918180094312', '8180094312'];
-      const isTestNumber = testNumbers.includes(formattedNumber) || testNumbers.includes(phoneNumber);
-      
-      if (isTestNumber) {
-        console.log('Test phone number detected - OTP should be: 123321');
-      }
-
-      // Check if recaptchaRef is available
-      if (!recaptchaRef) {
-        console.error('reCAPTCHA verifier is not available');
+      if (response.data.success) {
+        return { 
+          success: true, 
+          message: response.data.message,
+          // For testing only - remove in production
+          otp: response.data.otp,
+        };
+      } else {
         return {
           success: false,
-          error: 'Verification service is not ready. Please try again.',
+          error: response.data.message || 'Failed to send OTP',
         };
       }
-
-      // The recaptchaRef from WebRecaptcha component already has the verify method
-      // Firebase will call verify() internally when signInWithPhoneNumber is called
-      console.log('Calling signInWithPhoneNumber...');
-      
-      const confirmation = await signInWithPhoneNumber(
-        auth,
-        formattedNumber,
-        recaptchaRef
-      );
-      
-      console.log('OTP sent successfully, verification ID:', confirmation.verificationId);
-      setVerificationId(confirmation.verificationId);
-      return { success: true, confirmation };
     } catch (error) {
-      console.error('Error sending OTP:', {
-        code: error.code,
-        message: error.message,
-        fullError: error
-      });
-      
-      // Provide more specific error messages
-      let errorMessage = getErrorMessage(error.code);
-      
-      if (error.message === 'reCAPTCHA cancelled by user') {
-        errorMessage = 'Verification cancelled. Please try again.';
-      } else if (error.code === 'auth/invalid-app-credential' || error.message?.includes('reCAPTCHA')) {
-        errorMessage = 'Verification failed. Please try again or use the test number: 8180094312 with OTP: 123321';
-      } else if (error.code === 'auth/operation-not-allowed') {
-        errorMessage = 'Phone authentication is not enabled. Please contact support.';
-      } else if (error.code === 'auth/missing-client-identifier') {
-        errorMessage = 'App verification failed. Please try again.';
-      }
+      console.error('Error sending OTP:', error.response?.data || error.message);
       
       return {
         success: false,
-        error: errorMessage,
+        error: error.response?.data?.message || 'Failed to send OTP. Please try again.',
       };
     }
   };
 
-
-  // Verify OTP and sign in with backend
-  const verifyOTP = async (otp, confirmation) => {
+  // Verify OTP and login
+  const verifyOTP = async (phoneNumber, otp, name = '') => {
     try {
-      if (!confirmation && !verificationId) {
-        return { success: false, error: 'Please request OTP first' };
-      }
-
-      let result;
-
-      // Use confirmation object if available
-      if (confirmation && confirmation.confirm) {
-        result = await confirmation.confirm(otp);
-      } else if (verificationId) {
-        // Fallback to credential method
-        const credential = PhoneAuthProvider.credential(verificationId, otp);
-        result = await signInWithCredential(auth, credential);
-      } else {
-        return { success: false, error: 'Please request OTP first' };
-      }
-
-      // Get Firebase ID token to send to backend
-      const firebaseToken = await result.user.getIdToken();
-
-      // Sync with backend - create/login user in MongoDB
-      const response = await axios.post(`${config.apiUrl}/auth/login-phone`, {
-        firebaseToken,
+      console.log('Verifying OTP for:', phoneNumber);
+      
+      const response = await axios.post(`${config.apiUrl}/auth/verify-otp`, {
+        phone: phoneNumber,
+        otp,
+        name,
       });
 
-      const { token: authToken, user: authUser } = response.data;
+      console.log('Verify OTP response:', response.data);
 
-      // Store auth data
-      await AsyncStorage.setItem(config.tokenKey, authToken);
-      await AsyncStorage.setItem(config.userKey, JSON.stringify(authUser));
+      if (response.data.success) {
+        const { token: authToken, user: authUser } = response.data;
 
-      setToken(authToken);
-      setUser(authUser);
+        // Store auth data
+        await AsyncStorage.setItem(config.tokenKey, authToken);
+        await AsyncStorage.setItem(config.userKey, JSON.stringify(authUser));
 
-      return { success: true };
-    } catch (error) {
-      console.error('Error verifying OTP:', error);
+        setToken(authToken);
+        setUser(authUser);
 
-      // Handle backend errors
-      if (error.response) {
+        return { success: true };
+      } else {
         return {
           success: false,
-          error: error.response.data.message || 'Verification failed',
+          error: response.data.message || 'Verification failed',
+          attemptsRemaining: response.data.attemptsRemaining,
         };
       }
-
+    } catch (error) {
+      console.error('Error verifying OTP:', error.response?.data || error.message);
+      
       return {
         success: false,
-        error: getErrorMessage(error.code),
+        error: error.response?.data?.message || 'Verification failed. Please try again.',
+        attemptsRemaining: error.response?.data?.attemptsRemaining,
+      };
+    }
+  };
+
+  // Resend OTP
+  const resendOTP = async (phoneNumber) => {
+    try {
+      console.log('Resending OTP to:', phoneNumber);
+      
+      const response = await axios.post(`${config.apiUrl}/auth/resend-otp`, {
+        phone: phoneNumber,
+      });
+
+      if (response.data.success) {
+        return { 
+          success: true, 
+          message: response.data.message,
+          otp: response.data.otp, // For testing only
+        };
+      } else {
+        return {
+          success: false,
+          error: response.data.message || 'Failed to resend OTP',
+        };
+      }
+    } catch (error) {
+      console.error('Error resending OTP:', error.response?.data || error.message);
+      
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to resend OTP. Please try again.',
       };
     }
   };
@@ -185,7 +142,6 @@ export const AuthProvider = ({ children }) => {
   // Update user profile (name)
   const updateProfile = async (name) => {
     try {
-      // Try to update on backend if we have a token
       if (token) {
         try {
           const response = await axios.put(
@@ -204,7 +160,6 @@ export const AuthProvider = ({ children }) => {
           return { success: true };
         } catch (backendError) {
           console.log('Backend update failed, saving locally:', backendError.message);
-          // Fall through to local update
         }
       }
       
@@ -224,16 +179,6 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       console.log('Starting logout process...');
-      
-      // Sign out from Firebase (ignore errors if not signed in or auth not available)
-      if (isAuthAvailable()) {
-        try {
-          await signOut(auth);
-          console.log('Firebase signout successful');
-        } catch (firebaseError) {
-          console.log('Firebase signout skipped:', firebaseError.message);
-        }
-      }
 
       // Clear stored data
       await AsyncStorage.removeItem(config.tokenKey);
@@ -243,34 +188,13 @@ export const AuthProvider = ({ children }) => {
       // Clear state
       setUser(null);
       setToken(null);
-      setVerificationId(null);
       
-      console.log('Logout successful - state cleared');
+      console.log('Logout successful');
     } catch (error) {
       console.error('Error logging out:', error);
       // Still clear state even if there's an error
       setUser(null);
       setToken(null);
-      setVerificationId(null);
-      console.log('Logout completed with errors but state cleared');
-    }
-  };
-
-  // Get user-friendly error messages
-  const getErrorMessage = (errorCode) => {
-    switch (errorCode) {
-      case 'auth/invalid-phone-number':
-        return 'Invalid phone number. Please enter a valid number.';
-      case 'auth/too-many-requests':
-        return 'Too many attempts. Please try again later.';
-      case 'auth/invalid-verification-code':
-        return 'Invalid OTP. Please check and try again.';
-      case 'auth/code-expired':
-        return 'OTP has expired. Please request a new one.';
-      case 'auth/network-request-failed':
-        return 'Network error. Please check your connection.';
-      default:
-        return 'An error occurred. Please try again.';
     }
   };
 
@@ -282,9 +206,9 @@ export const AuthProvider = ({ children }) => {
         loading,
         sendOTP,
         verifyOTP,
+        resendOTP,
         updateProfile,
         logout,
-        verificationId,
       }}
     >
       {children}
