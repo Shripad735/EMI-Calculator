@@ -9,7 +9,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import Slider from '@react-native-community/slider';
+import CustomSlider from '../components/CustomSlider';
 import { calculateFD } from '../utils/fdCalculator';
 import { formatIndianCurrency } from '../utils/currencyFormatter';
 import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
@@ -87,7 +87,7 @@ export default function FDCalculatorScreen({ navigation }) {
               />
             </View>
             <Text style={styles.formattedValue}>{formatIndianCurrency(principal)}</Text>
-            <Slider
+            <CustomSlider
               style={styles.slider}
               minimumValue={1000}
               maximumValue={10000000}
@@ -119,7 +119,7 @@ export default function FDCalculatorScreen({ navigation }) {
               />
             </View>
             <Text style={styles.formattedValue}>{interestRate.toFixed(1)}% per annum</Text>
-            <Slider
+            <CustomSlider
               style={styles.slider}
               minimumValue={1}
               maximumValue={15}
@@ -151,7 +151,7 @@ export default function FDCalculatorScreen({ navigation }) {
               />
             </View>
             <Text style={styles.formattedValue}>{tenure} Months ({(tenure / 12).toFixed(1)} Years)</Text>
-            <Slider
+            <CustomSlider
               style={styles.slider}
               minimumValue={3}
               maximumValue={120}

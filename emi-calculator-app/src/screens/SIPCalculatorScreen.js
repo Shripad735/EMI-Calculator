@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, Alert } from 'react-native';
-import Slider from '@react-native-community/slider';
+import CustomSlider from '../components/CustomSlider';
 import { calculateSIP } from '../utils/sipCalculator';
 import { formatIndianCurrency } from '../utils/currencyFormatter';
 import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
@@ -36,7 +36,7 @@ export default function SIPCalculatorScreen({ navigation }) {
               <TextInput style={styles.valueInput} value={monthlyInvestment.toString()} onChangeText={(text) => { const num = parseFloat(text) || 0; if (num >= 500 && num <= 100000) setMonthlyInvestment(num); }} keyboardType="numeric" />
             </View>
             <Text style={styles.formattedValue}>{formatIndianCurrency(monthlyInvestment)}</Text>
-            <Slider style={styles.slider} minimumValue={500} maximumValue={100000} step={500} value={monthlyInvestment} onValueChange={setMonthlyInvestment} minimumTrackTintColor={colors.primary} maximumTrackTintColor={colors.border} thumbTintColor={colors.primary} />
+            <CustomSlider style={styles.slider} minimumValue={500} maximumValue={100000} step={500} value={monthlyInvestment} onValueChange={setMonthlyInvestment} minimumTrackTintColor={colors.primary} maximumTrackTintColor={colors.border} thumbTintColor={colors.primary} />
             <View style={styles.sliderLabels}><Text style={styles.sliderLabelText}>₹500</Text><Text style={styles.sliderLabelText}>₹1L</Text></View>
           </View>
 
@@ -46,7 +46,7 @@ export default function SIPCalculatorScreen({ navigation }) {
               <TextInput style={styles.valueInput} value={expectedReturn.toString()} onChangeText={(text) => { const num = parseFloat(text) || 0; if (num >= 1 && num <= 30) setExpectedReturn(num); }} keyboardType="decimal-pad" />
             </View>
             <Text style={styles.formattedValue}>{expectedReturn.toFixed(1)}% per annum</Text>
-            <Slider style={styles.slider} minimumValue={1} maximumValue={30} step={0.5} value={expectedReturn} onValueChange={setExpectedReturn} minimumTrackTintColor={colors.primary} maximumTrackTintColor={colors.border} thumbTintColor={colors.primary} />
+            <CustomSlider style={styles.slider} minimumValue={1} maximumValue={30} step={0.5} value={expectedReturn} onValueChange={setExpectedReturn} minimumTrackTintColor={colors.primary} maximumTrackTintColor={colors.border} thumbTintColor={colors.primary} />
             <View style={styles.sliderLabels}><Text style={styles.sliderLabelText}>1%</Text><Text style={styles.sliderLabelText}>30%</Text></View>
           </View>
 
@@ -56,7 +56,7 @@ export default function SIPCalculatorScreen({ navigation }) {
               <TextInput style={styles.valueInput} value={tenureYears.toString()} onChangeText={(text) => { const num = parseInt(text) || 0; if (num >= 1 && num <= 40) setTenureYears(num); }} keyboardType="numeric" />
             </View>
             <Text style={styles.formattedValue}>{tenureYears} Years</Text>
-            <Slider style={styles.slider} minimumValue={1} maximumValue={40} step={1} value={tenureYears} onValueChange={setTenureYears} minimumTrackTintColor={colors.primary} maximumTrackTintColor={colors.border} thumbTintColor={colors.primary} />
+            <CustomSlider style={styles.slider} minimumValue={1} maximumValue={40} step={1} value={tenureYears} onValueChange={setTenureYears} minimumTrackTintColor={colors.primary} maximumTrackTintColor={colors.border} thumbTintColor={colors.primary} />
             <View style={styles.sliderLabels}><Text style={styles.sliderLabelText}>1Y</Text><Text style={styles.sliderLabelText}>40Y</Text></View>
           </View>
         </View>

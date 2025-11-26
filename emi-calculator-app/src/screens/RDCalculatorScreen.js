@@ -9,7 +9,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import Slider from '@react-native-community/slider';
+import CustomSlider from '../components/CustomSlider';
 import { calculateRD } from '../utils/rdCalculator';
 import { formatIndianCurrency } from '../utils/currencyFormatter';
 import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
@@ -57,7 +57,7 @@ export default function RDCalculatorScreen({ navigation }) {
               />
             </View>
             <Text style={styles.formattedValue}>{formatIndianCurrency(monthlyDeposit)}</Text>
-            <Slider
+            <CustomSlider
               style={styles.slider}
               minimumValue={500}
               maximumValue={100000}
@@ -88,7 +88,7 @@ export default function RDCalculatorScreen({ navigation }) {
               />
             </View>
             <Text style={styles.formattedValue}>{interestRate.toFixed(1)}% per annum</Text>
-            <Slider
+            <CustomSlider
               style={styles.slider}
               minimumValue={1}
               maximumValue={15}
@@ -119,7 +119,7 @@ export default function RDCalculatorScreen({ navigation }) {
               />
             </View>
             <Text style={styles.formattedValue}>{tenure} Months</Text>
-            <Slider
+            <CustomSlider
               style={styles.slider}
               minimumValue={3}
               maximumValue={120}

@@ -1,65 +1,44 @@
-import React, { useRef, useImperativeHandle, forwardRef, useState, useEffect } from 'react';
+import React, { useRef, useImperativeHandle, forwardRef, useState, useCallback } from 'react';
 import { View, Modal, StyleSheet, ActivityIndicator, Text, TouchableOpacity, Platform } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { colors } from '../constants/colors';
 
-// Lazy load WebView to prevent crashes on startup
-let WebView = null;
-
 /**
- * WebRecaptcha - A web-based reCAPTCHA verifier that works with Expo managed workflow
- * This replaces expo-firebase-recaptcha which has native dependency issues
+ * WebRecaptcha - A web-based reCAPTCHA verifier for Firebase Phone Auth
+ * Works with Expo managed workflow on both Android and iOS
  */
 const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose }, ref) => {
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [webViewLoaded, setWebViewLoaded] = useState(false);
   const webViewRef = useRef(null);
   const resolveRef = useRef(null);
   const rejectRef = useRef(null);
 
-  // Lazy load WebView when component mounts
-  useEffect(() => {
-    const loadWebView = async () => {
-      try {
-        if (Platform.OS !== 'web') {
-          const webViewModule = await import('react-native-webview');
-          WebView = webViewModule.WebView || webViewModule.default;
-          setWebViewLoaded(true);
-        }
-      } catch (error) {
-        console.error('Failed to load WebView:', error);
+  // Create the application verifier interface that Firebase expects
+  const createVerifier = useCallback(() => {
+    return {
+      type: 'recaptcha',
+      verify: () => {
+        return new Promise((resolve, reject) => {
+          resolveRef.current = resolve;
+          rejectRef.current = reject;
+          setVisible(true);
+          setLoading(true);
+        });
       }
     };
-    loadWebView();
   }, []);
 
-  // Expose verify method to parent component
+  // Expose methods to parent component
   useImperativeHandle(ref, () => ({
-    verify: () => {
-      return new Promise((resolve, reject) => {
-        if (Platform.OS === 'web') {
-          // For web, resolve immediately (Firebase handles reCAPTCHA differently on web)
-          resolve('web-token');
-          return;
-        }
-        
-        if (!webViewLoaded || !WebView) {
-          reject(new Error('WebView not available'));
-          return;
-        }
-        
-        resolveRef.current = resolve;
-        rejectRef.current = reject;
-        setVisible(true);
-        setLoading(true);
-      });
-    },
+    // Return a verifier object that Firebase can use
+    ...createVerifier(),
     close: () => {
       setVisible(false);
     }
   }));
 
-  const handleMessage = (event) => {
+  const handleMessage = useCallback((event) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
       
@@ -82,13 +61,16 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
         }
       } else if (data.type === 'recaptcha-loaded') {
         setLoading(false);
+      } else if (data.type === 'recaptcha-expired') {
+        // Handle expired token - user needs to verify again
+        setLoading(false);
       }
     } catch (e) {
       console.error('WebRecaptcha message parse error:', e);
     }
-  };
+  }, [onVerify, onError]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setVisible(false);
     if (rejectRef.current) {
       rejectRef.current(new Error('reCAPTCHA cancelled by user'));
@@ -96,38 +78,50 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
     if (onClose) {
       onClose();
     }
-  };
+  }, [onClose]);
 
   // HTML content for the reCAPTCHA widget
   const recaptchaHTML = `
     <!DOCTYPE html>
     <html>
     <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
       <style>
+        * { box-sizing: border-box; }
         body {
           display: flex;
           justify-content: center;
           align-items: center;
           min-height: 100vh;
           margin: 0;
-          background-color: #f5f5f5;
+          padding: 20px;
+          background-color: #f8f9fa;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         .container {
           text-align: center;
-          padding: 20px;
+          width: 100%;
+          max-width: 320px;
         }
         .title {
           color: #333;
           margin-bottom: 20px;
-          font-size: 18px;
+          font-size: 16px;
+          font-weight: 500;
         }
         #recaptcha-container {
-          display: inline-block;
+          display: flex;
+          justify-content: center;
+          transform-origin: center center;
         }
         .loading {
           color: #666;
+          font-size: 14px;
+        }
+        .error {
+          color: #dc3545;
+          font-size: 14px;
+          margin-top: 10px;
         }
       </style>
       <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -135,61 +129,79 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
     </head>
     <body>
       <div class="container">
-        <p class="title">Verify you're human</p>
+        <p class="title">Please verify you're human</p>
         <div id="recaptcha-container"></div>
         <p class="loading" id="loading">Loading verification...</p>
+        <p class="error" id="error" style="display: none;"></p>
       </div>
       <script>
-        try {
-          // Initialize Firebase
-          const firebaseConfig = ${JSON.stringify(firebaseConfig)};
-          
-          if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-          }
-          
-          // Set up reCAPTCHA verifier
-          window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-            size: 'normal',
-            callback: function(token) {
+        (function() {
+          try {
+            const firebaseConfig = ${JSON.stringify(firebaseConfig)};
+            
+            // Initialize Firebase if not already initialized
+            if (!firebase.apps.length) {
+              firebase.initializeApp(firebaseConfig);
+            }
+            
+            // Create reCAPTCHA verifier
+            window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+              size: 'normal',
+              callback: function(token) {
+                // reCAPTCHA solved - send token back to React Native
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'recaptcha-verified',
+                  token: token
+                }));
+              },
+              'expired-callback': function() {
+                // reCAPTCHA expired
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'recaptcha-expired',
+                  message: 'reCAPTCHA expired. Please try again.'
+                }));
+              },
+              'error-callback': function(error) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'recaptcha-error',
+                  message: error.message || 'reCAPTCHA error occurred'
+                }));
+              }
+            });
+            
+            // Render the reCAPTCHA widget
+            window.recaptchaVerifier.render().then(function(widgetId) {
+              document.getElementById('loading').style.display = 'none';
               window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'recaptcha-verified',
-                token: token
+                type: 'recaptcha-loaded',
+                widgetId: widgetId
               }));
-            },
-            'expired-callback': function() {
+            }).catch(function(error) {
+              document.getElementById('loading').style.display = 'none';
+              document.getElementById('error').style.display = 'block';
+              document.getElementById('error').textContent = 'Failed to load verification: ' + (error.message || 'Unknown error');
               window.ReactNativeWebView.postMessage(JSON.stringify({
                 type: 'recaptcha-error',
-                message: 'reCAPTCHA expired. Please try again.'
+                message: error.message || 'Failed to render reCAPTCHA'
               }));
-            }
-          });
-          
-          // Render the reCAPTCHA
-          window.recaptchaVerifier.render().then(function() {
+            });
+          } catch (error) {
             document.getElementById('loading').style.display = 'none';
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'recaptcha-loaded'
-            }));
-          }).catch(function(error) {
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error').textContent = 'Initialization error: ' + (error.message || 'Unknown error');
             window.ReactNativeWebView.postMessage(JSON.stringify({
               type: 'recaptcha-error',
-              message: error.message || 'Failed to load reCAPTCHA'
+              message: error.message || 'Failed to initialize Firebase'
             }));
-          });
-        } catch (error) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'recaptcha-error',
-            message: error.message || 'Failed to initialize reCAPTCHA'
-          }));
-        }
+          }
+        })();
       </script>
     </body>
     </html>
   `;
 
-  // Don't render anything on web or if WebView isn't loaded
-  if (Platform.OS === 'web' || !webViewLoaded || !WebView) {
+  // For web platform, return null (web has its own reCAPTCHA handling)
+  if (Platform.OS === 'web') {
     return null;
   }
 
@@ -211,7 +223,7 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
           
           {loading && (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors?.primary || '#2563eb'} />
+              <ActivityIndicator size="large" color={colors.primary} />
               <Text style={styles.loadingText}>Loading verification...</Text>
             </View>
           )}
@@ -225,9 +237,14 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
             domStorageEnabled={true}
             startInLoadingState={false}
             scalesPageToFit={true}
-            onError={(e) => {
-              console.error('WebView error:', e.nativeEvent);
-              handleClose();
+            originWhitelist={['*']}
+            mixedContentMode="compatibility"
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.error('WebView error:', nativeEvent);
+              if (onError) {
+                onError(new Error('WebView failed to load'));
+              }
             }}
           />
         </View>
@@ -258,6 +275,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    backgroundColor: '#f8f9fa',
   },
   headerTitle: {
     fontSize: 18,
@@ -273,6 +291,7 @@ const styles = StyleSheet.create({
   },
   webview: {
     height: 400,
+    backgroundColor: '#f8f9fa',
   },
   hidden: {
     opacity: 0,
@@ -281,6 +300,7 @@ const styles = StyleSheet.create({
   loadingContainer: {
     padding: 40,
     alignItems: 'center',
+    backgroundColor: '#f8f9fa',
   },
   loadingText: {
     marginTop: 12,

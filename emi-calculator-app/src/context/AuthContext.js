@@ -50,6 +50,7 @@ export const AuthProvider = ({ children }) => {
     try {
       // Check if Firebase auth is available
       if (!isAuthAvailable()) {
+        console.error('Firebase auth is not available');
         return {
           success: false,
           error: 'Authentication service is not available. Please try again later.',
@@ -57,6 +58,8 @@ export const AuthProvider = ({ children }) => {
       }
       
       console.log('Sending OTP to:', phoneNumber);
+      console.log('Auth object:', !!auth);
+      console.log('RecaptchaRef:', !!recaptchaRef);
       
       // Format phone number with country code if not present
       const formattedNumber = phoneNumber.startsWith('+')
@@ -73,26 +76,23 @@ export const AuthProvider = ({ children }) => {
         console.log('Test phone number detected - OTP should be: 123321');
       }
 
-      // For WebRecaptcha, we need to trigger verification first
-      let recaptchaVerifier = recaptchaRef;
-      
-      // If recaptchaRef has a verify method (WebRecaptcha component), use it
-      if (recaptchaRef && typeof recaptchaRef.verify === 'function') {
-        console.log('Using WebRecaptcha component for verification');
-        // The WebRecaptcha will handle the verification internally
-        // We create a custom verifier object that Firebase can use
-        recaptchaVerifier = {
-          type: 'recaptcha',
-          verify: async () => {
-            return await recaptchaRef.verify();
-          }
+      // Check if recaptchaRef is available
+      if (!recaptchaRef) {
+        console.error('reCAPTCHA verifier is not available');
+        return {
+          success: false,
+          error: 'Verification service is not ready. Please try again.',
         };
       }
 
+      // The recaptchaRef from WebRecaptcha component already has the verify method
+      // Firebase will call verify() internally when signInWithPhoneNumber is called
+      console.log('Calling signInWithPhoneNumber...');
+      
       const confirmation = await signInWithPhoneNumber(
         auth,
         formattedNumber,
-        recaptchaVerifier
+        recaptchaRef
       );
       
       console.log('OTP sent successfully, verification ID:', confirmation.verificationId);
@@ -107,8 +107,15 @@ export const AuthProvider = ({ children }) => {
       
       // Provide more specific error messages
       let errorMessage = getErrorMessage(error.code);
-      if (error.code === 'auth/invalid-app-credential' || error.message?.includes('reCAPTCHA')) {
-        errorMessage = 'reCAPTCHA verification failed. For testing, please configure reCAPTCHA in Firebase Console or use the test number: 8180094312 with OTP: 123321';
+      
+      if (error.message === 'reCAPTCHA cancelled by user') {
+        errorMessage = 'Verification cancelled. Please try again.';
+      } else if (error.code === 'auth/invalid-app-credential' || error.message?.includes('reCAPTCHA')) {
+        errorMessage = 'Verification failed. Please try again or use the test number: 8180094312 with OTP: 123321';
+      } else if (error.code === 'auth/operation-not-allowed') {
+        errorMessage = 'Phone authentication is not enabled. Please contact support.';
+      } else if (error.code === 'auth/missing-client-identifier') {
+        errorMessage = 'App verification failed. Please try again.';
       }
       
       return {
