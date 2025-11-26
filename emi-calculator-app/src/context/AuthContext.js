@@ -5,11 +5,15 @@ import {
   signInWithPhoneNumber,
   PhoneAuthProvider,
   signInWithCredential,
-  onAuthStateChanged,
   signOut,
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { config } from '../constants/config';
+
+// Check if auth is available
+const isAuthAvailable = () => {
+  return auth !== null && auth !== undefined;
+};
 
 const AuthContext = createContext(null);
 
@@ -44,6 +48,14 @@ export const AuthProvider = ({ children }) => {
   // Send OTP to phone number
   const sendOTP = async (phoneNumber, recaptchaRef) => {
     try {
+      // Check if Firebase auth is available
+      if (!isAuthAvailable()) {
+        return {
+          success: false,
+          error: 'Authentication service is not available. Please try again later.',
+        };
+      }
+      
       console.log('Sending OTP to:', phoneNumber);
       
       // Format phone number with country code if not present
@@ -206,12 +218,14 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('Starting logout process...');
       
-      // Sign out from Firebase (ignore errors if not signed in)
-      try {
-        await signOut(auth);
-        console.log('Firebase signout successful');
-      } catch (firebaseError) {
-        console.log('Firebase signout skipped:', firebaseError.message);
+      // Sign out from Firebase (ignore errors if not signed in or auth not available)
+      if (isAuthAvailable()) {
+        try {
+          await signOut(auth);
+          console.log('Firebase signout successful');
+        } catch (firebaseError) {
+          console.log('Firebase signout skipped:', firebaseError.message);
+        }
       }
 
       // Clear stored data

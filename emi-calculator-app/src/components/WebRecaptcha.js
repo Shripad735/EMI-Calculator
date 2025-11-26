@@ -1,7 +1,9 @@
-import React, { useRef, useImperativeHandle, forwardRef, useState } from 'react';
+import React, { useRef, useImperativeHandle, forwardRef, useState, useEffect } from 'react';
 import { View, Modal, StyleSheet, ActivityIndicator, Text, TouchableOpacity, Platform } from 'react-native';
-import { WebView } from 'react-native-webview';
 import { colors } from '../constants/colors';
+
+// Lazy load WebView to prevent crashes on startup
+let WebView = null;
 
 /**
  * WebRecaptcha - A web-based reCAPTCHA verifier that works with Expo managed workflow
@@ -10,14 +12,42 @@ import { colors } from '../constants/colors';
 const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose }, ref) => {
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [webViewLoaded, setWebViewLoaded] = useState(false);
   const webViewRef = useRef(null);
   const resolveRef = useRef(null);
   const rejectRef = useRef(null);
+
+  // Lazy load WebView when component mounts
+  useEffect(() => {
+    const loadWebView = async () => {
+      try {
+        if (Platform.OS !== 'web') {
+          const webViewModule = await import('react-native-webview');
+          WebView = webViewModule.WebView || webViewModule.default;
+          setWebViewLoaded(true);
+        }
+      } catch (error) {
+        console.error('Failed to load WebView:', error);
+      }
+    };
+    loadWebView();
+  }, []);
 
   // Expose verify method to parent component
   useImperativeHandle(ref, () => ({
     verify: () => {
       return new Promise((resolve, reject) => {
+        if (Platform.OS === 'web') {
+          // For web, resolve immediately (Firebase handles reCAPTCHA differently on web)
+          resolve('web-token');
+          return;
+        }
+        
+        if (!webViewLoaded || !WebView) {
+          reject(new Error('WebView not available'));
+          return;
+        }
+        
         resolveRef.current = resolve;
         rejectRef.current = reject;
         setVisible(true);
@@ -158,8 +188,8 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
     </html>
   `;
 
-  if (Platform.OS === 'web') {
-    // For web platform, we'll handle this differently
+  // Don't render anything on web or if WebView isn't loaded
+  if (Platform.OS === 'web' || !webViewLoaded || !WebView) {
     return null;
   }
 
@@ -181,7 +211,7 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
           
           {loading && (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
+              <ActivityIndicator size="large" color={colors?.primary || '#2563eb'} />
               <Text style={styles.loadingText}>Loading verification...</Text>
             </View>
           )}
@@ -195,6 +225,10 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
             domStorageEnabled={true}
             startInLoadingState={false}
             scalesPageToFit={true}
+            onError={(e) => {
+              console.error('WebView error:', e.nativeEvent);
+              handleClose();
+            }}
           />
         </View>
       </View>

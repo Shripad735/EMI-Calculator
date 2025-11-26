@@ -20,14 +20,16 @@ const firebaseConfig = {
     '1:603179355192:web:df8d929bae93406718aacd',
 };
 
-// Initialize Firebase v9 modular
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
+// Initialize Firebase v9 modular with error handling
+let app = null;
+let auth = null;
 
-console.log('Firebase initialized:', {
-  appName: app.name,
-  hasAuth: !!auth,
-  appsCount: getApps().length
-});
+try {
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+  auth = getAuth(app);
+  console.log('Firebase initialized successfully');
+} catch (error) {
+  console.error('Firebase initialization error:', error);
+}
 
 export { app, firebaseConfig, auth };
