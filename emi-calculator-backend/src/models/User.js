@@ -42,7 +42,11 @@ const userSchema = new mongoose.Schema({
   },
   firebaseUid: {
     type: String,
-    sparse: true, // Firebase UID for phone auth users
+    sparse: true, // Firebase UID for phone auth users (legacy)
+  },
+  supabaseId: {
+    type: String,
+    sparse: true, // Supabase user ID for phone auth
   },
   authProvider: {
     type: String,
@@ -59,6 +63,7 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ email: 1 }, { unique: true, sparse: true });
 userSchema.index({ phone: 1 }, { unique: true, sparse: true });
 userSchema.index({ firebaseUid: 1 }, { unique: true, sparse: true });
+userSchema.index({ supabaseId: 1 }, { unique: true, sparse: true });
 
 // Ensure password hash is never returned in JSON responses
 userSchema.set('toJSON', {

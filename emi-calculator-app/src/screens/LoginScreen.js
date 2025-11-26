@@ -22,7 +22,7 @@ export default function LoginScreen({ navigation }) {
   const [step, setStep] = useState('phone'); // 'phone', 'otp', 'name'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [testOtp, setTestOtp] = useState(''); // For displaying test OTP
+  const [successMessage, setSuccessMessage] = useState('');
 
   const handleSendOTP = async () => {
     if (!phoneNumber || phoneNumber.length < 10) {
@@ -37,11 +37,7 @@ export default function LoginScreen({ navigation }) {
       const result = await sendOTP(phoneNumber);
       if (result.success) {
         setStep('otp');
-        // For testing - show OTP in development
-        if (result.otp) {
-          setTestOtp(result.otp);
-          console.log('Test OTP:', result.otp);
-        }
+        setSuccessMessage('OTP sent to your phone!');
       } else {
         setError(result.error);
       }
@@ -84,11 +80,8 @@ export default function LoginScreen({ navigation }) {
     try {
       const result = await resendOTP(phoneNumber);
       if (result.success) {
-        setError(''); // Clear any previous errors
-        if (result.otp) {
-          setTestOtp(result.otp);
-          console.log('Resent OTP:', result.otp);
-        }
+        setError('');
+        setSuccessMessage('OTP resent successfully!');
       } else {
         setError(result.error);
       }
@@ -187,11 +180,10 @@ export default function LoginScreen({ navigation }) {
               Enter the 6-digit code sent to +91 {phoneNumber}
             </Text>
 
-            {/* Test OTP display - remove in production */}
-            {testOtp ? (
-              <View style={styles.testOtpContainer}>
-                <Text style={styles.testOtpLabel}>Test OTP:</Text>
-                <Text style={styles.testOtpValue}>{testOtp}</Text>
+            {/* Success message */}
+            {successMessage ? (
+              <View style={styles.successMessageContainer}>
+                <Text style={styles.successMessageText}>{successMessage}</Text>
               </View>
             ) : null}
 
@@ -449,26 +441,17 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: typography.fontSize.base,
   },
-  testOtpContainer: {
-    backgroundColor: '#fff3cd',
+  successMessageContainer: {
+    backgroundColor: '#d4edda',
     borderRadius: borderRadius.base,
     padding: spacing.md,
     marginBottom: spacing.lg,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ffc107',
+    borderColor: '#28a745',
   },
-  testOtpLabel: {
+  successMessageText: {
     fontSize: typography.fontSize.sm,
-    color: '#856404',
-    marginRight: spacing.sm,
-  },
-  testOtpValue: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.bold,
-    color: '#856404',
-    letterSpacing: 2,
+    color: '#155724',
+    textAlign: 'center',
   },
 });

@@ -1,13 +1,6 @@
-const OTP = require('../models/OTP');
+const { supabase } = require('../config/supabase');
 const User = require('../models/User');
 const { generateToken } = require('../utils/jwt');
-
-/**
- * Generate a 6-digit OTP
- */
-function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
 
 /**
  * Format phone number to standard format
@@ -31,7 +24,7 @@ function formatPhoneNumber(phone) {
 }
 
 /**
- * Send OTP to phone number
+ * Send OTP to phone number using Supabase (which uses Twilio)
  * POST /auth/send-otp
  */
 async function sendOTP(req, res, next) {
@@ -48,29 +41,24 @@ async function sendOTP(req, res, next) {
     const formattedPhone = formatPhoneNumber(phone);
     console.log('Sending OTP to:', formattedPhone);
 
-    // Delete any existing OTPs for this phone
-    await OTP.deleteMany({ phone: formattedPhone });
-
-    // Generate new OTP
-    const otpCode = generateOTP();
-    console.log('Generated OTP:', otpCode); // For testing - remove in production
-
-    // Save OTP to database
-    const otpDoc = new OTP({
+    // Use Supabase to send OTP via Twilio
+    const { data, error } = await supabase.auth.signInWithOtp({
       phone: formattedPhone,
-      otp: otpCode,
     });
-    await otpDoc.save();
 
-    // In production, you would send SMS here using Supabase or another service
-    // For now, we'll just return success and log the OTP
-    // TODO: Integrate with SMS service (Twilio, MSG91, etc.)
+    if (error) {
+      console.error('Supabase OTP error:', error);
+      return res.status(400).json({
+        success: false,
+        message: error.message || 'Failed to send OTP',
+      });
+    }
+
+    console.log('OTP sent successfully via Supabase/Twilio');
 
     res.status(200).json({
       success: true,
-      message: 'OTP sent successfully',
-      // Remove this in production - only for testing
-      ...(process.env.NODE_ENV !== 'production' && { otp: otpCode }),
+      message: 'OTP sent successfully to your phone',
     });
   } catch (error) {
     console.error('Send OTP error:', error);
@@ -94,44 +82,26 @@ async function verifyOTP(req, res, next) {
     }
 
     const formattedPhone = formatPhoneNumber(phone);
+    console.log('Verifying OTP for:', formattedPhone);
 
-    // Find the OTP record
-    const otpDoc = await OTP.findOne({ 
+    // Verify OTP with Supabase
+    const { data, error } = await supabase.auth.verifyOtp({
       phone: formattedPhone,
-      verified: false,
-    }).sort({ createdAt: -1 });
+      token: otp,
+      type: 'sms',
+    });
 
-    if (!otpDoc) {
+    if (error) {
+      console.error('Supabase verify error:', error);
       return res.status(400).json({
         success: false,
-        message: 'OTP expired or not found. Please request a new OTP.',
+        message: error.message || 'Invalid OTP. Please try again.',
       });
     }
 
-    // Check max attempts
-    if (otpDoc.attempts >= 5) {
-      await OTP.deleteOne({ _id: otpDoc._id });
-      return res.status(400).json({
-        success: false,
-        message: 'Too many failed attempts. Please request a new OTP.',
-      });
-    }
+    console.log('OTP verified successfully');
 
-    // Verify OTP
-    if (otpDoc.otp !== otp) {
-      otpDoc.attempts += 1;
-      await otpDoc.save();
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid OTP. Please try again.',
-        attemptsRemaining: 5 - otpDoc.attempts,
-      });
-    }
-
-    // OTP verified - mark as verified and delete
-    await OTP.deleteOne({ _id: otpDoc._id });
-
-    // Find or create user
+    // Find or create user in our MongoDB
     let user = await User.findOne({ phone: formattedPhone });
 
     if (!user) {
@@ -140,16 +110,24 @@ async function verifyOTP(req, res, next) {
         name: name || '',
         phone: formattedPhone,
         authProvider: 'phone',
+        supabaseId: data.user?.id,
       });
       await user.save();
       console.log('New user created:', user._id);
-    } else if (name && !user.name) {
+    } else {
+      // Update supabaseId if not set
+      if (!user.supabaseId && data.user?.id) {
+        user.supabaseId = data.user.id;
+        await user.save();
+      }
       // Update name if provided and user has no name
-      user.name = name;
-      await user.save();
+      if (name && !user.name) {
+        user.name = name;
+        await user.save();
+      }
     }
 
-    // Generate JWT token
+    // Generate our own JWT token for the app
     const token = generateToken(user._id.toString());
 
     res.status(200).json({
@@ -187,36 +165,33 @@ async function resendOTP(req, res, next) {
     }
 
     const formattedPhone = formatPhoneNumber(phone);
+    console.log('Resending OTP to:', formattedPhone);
 
-    // Check if there's a recent OTP (within last 30 seconds)
-    const recentOTP = await OTP.findOne({
+    // Use Supabase to resend OTP
+    const { data, error } = await supabase.auth.signInWithOtp({
       phone: formattedPhone,
-      createdAt: { $gt: new Date(Date.now() - 30000) },
     });
 
-    if (recentOTP) {
-      return res.status(429).json({
+    if (error) {
+      console.error('Supabase resend error:', error);
+      
+      // Check for rate limiting
+      if (error.message?.includes('rate') || error.status === 429) {
+        return res.status(429).json({
+          success: false,
+          message: 'Please wait before requesting a new OTP.',
+        });
+      }
+      
+      return res.status(400).json({
         success: false,
-        message: 'Please wait 30 seconds before requesting a new OTP.',
+        message: error.message || 'Failed to resend OTP',
       });
     }
-
-    // Delete existing OTPs and generate new one
-    await OTP.deleteMany({ phone: formattedPhone });
-
-    const otpCode = generateOTP();
-    console.log('Resent OTP:', otpCode); // For testing
-
-    const otpDoc = new OTP({
-      phone: formattedPhone,
-      otp: otpCode,
-    });
-    await otpDoc.save();
 
     res.status(200).json({
       success: true,
       message: 'OTP resent successfully',
-      ...(process.env.NODE_ENV !== 'production' && { otp: otpCode }),
     });
   } catch (error) {
     console.error('Resend OTP error:', error);

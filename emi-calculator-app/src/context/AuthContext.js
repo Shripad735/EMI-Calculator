@@ -47,8 +47,6 @@ export const AuthProvider = ({ children }) => {
         return { 
           success: true, 
           message: response.data.message,
-          // For testing only - remove in production
-          otp: response.data.otp,
         };
       } else {
         return {
@@ -121,7 +119,6 @@ export const AuthProvider = ({ children }) => {
         return { 
           success: true, 
           message: response.data.message,
-          otp: response.data.otp, // For testing only
         };
       } else {
         return {
