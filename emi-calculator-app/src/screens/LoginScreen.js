@@ -10,14 +10,14 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import WebRecaptcha from '../components/WebRecaptcha';
 import { app, firebaseConfig } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
 
 export default function LoginScreen({ navigation }) {
   const { sendOTP, verifyOTP, updateProfile } = useAuth();
-  const recaptchaVerifier = useRef(null);
+  const recaptchaRef = useRef(null);
 
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState('');
@@ -42,7 +42,8 @@ export default function LoginScreen({ navigation }) {
     setError('');
 
     try {
-      const result = await sendOTP(phoneNumber, recaptchaVerifier.current);
+      // Use the WebRecaptcha component for verification
+      const result = await sendOTP(phoneNumber, recaptchaRef.current);
       if (result.success) {
         setConfirmation(result.confirmation);
         setStep('otp');
@@ -101,10 +102,10 @@ export default function LoginScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
+      <WebRecaptcha
+        ref={recaptchaRef}
         firebaseConfig={firebaseConfig}
-        attemptInvisibleVerification={true}
+        onError={(err) => setError(err.message)}
       />
 
       <ScrollView

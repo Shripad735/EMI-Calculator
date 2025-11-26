@@ -42,10 +42,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Send OTP to phone number
-  const sendOTP = async (phoneNumber, recaptchaVerifier) => {
+  const sendOTP = async (phoneNumber, recaptchaRef) => {
     try {
       console.log('Sending OTP to:', phoneNumber);
-      console.log('Recaptcha verifier:', !!recaptchaVerifier);
       
       // Format phone number with country code if not present
       const formattedNumber = phoneNumber.startsWith('+')
@@ -60,6 +59,22 @@ export const AuthProvider = ({ children }) => {
       
       if (isTestNumber) {
         console.log('Test phone number detected - OTP should be: 123321');
+      }
+
+      // For WebRecaptcha, we need to trigger verification first
+      let recaptchaVerifier = recaptchaRef;
+      
+      // If recaptchaRef has a verify method (WebRecaptcha component), use it
+      if (recaptchaRef && typeof recaptchaRef.verify === 'function') {
+        console.log('Using WebRecaptcha component for verification');
+        // The WebRecaptcha will handle the verification internally
+        // We create a custom verifier object that Firebase can use
+        recaptchaVerifier = {
+          type: 'recaptcha',
+          verify: async () => {
+            return await recaptchaRef.verify();
+          }
+        };
       }
 
       const confirmation = await signInWithPhoneNumber(
