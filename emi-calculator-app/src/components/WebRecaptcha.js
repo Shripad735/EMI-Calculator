@@ -1,11 +1,12 @@
-import React, { useRef, useImperativeHandle, forwardRef, useState, useCallback } from 'react';
+import React, { useRef, useImperativeHandle, forwardRef, useState, useCallback, useEffect } from 'react';
 import { View, Modal, StyleSheet, ActivityIndicator, Text, TouchableOpacity, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { getAuth, RecaptchaVerifier } from 'firebase/auth';
 import { colors } from '../constants/colors';
 
 /**
- * WebRecaptcha - A web-based reCAPTCHA verifier for Firebase Phone Auth
- * Works with Expo managed workflow on both Android and iOS
+ * WebRecaptcha - A reCAPTCHA verifier for Firebase Phone Auth
+ * Works on web, Android, and iOS
  */
 const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose }, ref) => {
   const [visible, setVisible] = useState(false);
@@ -13,30 +14,73 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
   const webViewRef = useRef(null);
   const resolveRef = useRef(null);
   const rejectRef = useRef(null);
+  const webRecaptchaVerifier = useRef(null);
+
+  // For web platform, use Firebase's built-in RecaptchaVerifier
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      // Create a hidden div for reCAPTCHA on web
+      const recaptchaContainer = document.getElementById('recaptcha-container');
+      if (!recaptchaContainer) {
+        const div = document.createElement('div');
+        div.id = 'recaptcha-container';
+        div.style.display = 'none';
+        document.body.appendChild(div);
+      }
+    }
+  }, []);
 
   // Create the application verifier interface that Firebase expects
   const createVerifier = useCallback(() => {
-    return {
-      type: 'recaptcha',
-      verify: () => {
-        return new Promise((resolve, reject) => {
-          resolveRef.current = resolve;
-          rejectRef.current = reject;
-          setVisible(true);
-          setLoading(true);
-        });
+    if (Platform.OS === 'web') {
+      // For web, create Firebase's RecaptchaVerifier
+      if (!webRecaptchaVerifier.current) {
+        try {
+          const auth = getAuth();
+          webRecaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            size: 'invisible',
+            callback: (response) => {
+              console.log('reCAPTCHA solved on web');
+              if (onVerify) {
+                onVerify(response);
+              }
+            },
+            'expired-callback': () => {
+              console.log('reCAPTCHA expired on web');
+              if (onError) {
+                onError(new Error('reCAPTCHA expired'));
+              }
+            }
+          });
+        } catch (error) {
+          console.error('Error creating RecaptchaVerifier:', error);
+        }
       }
-    };
-  }, []);
+      return webRecaptchaVerifier.current;
+    } else {
+      // For mobile, return custom verifier that shows WebView
+      return {
+        type: 'recaptcha',
+        verify: () => {
+          return new Promise((resolve, reject) => {
+            resolveRef.current = resolve;
+            rejectRef.current = reject;
+            setVisible(true);
+            setLoading(true);
+          });
+        }
+      };
+    }
+  }, [onVerify, onError]);
 
   // Expose methods to parent component
-  useImperativeHandle(ref, () => ({
-    // Return a verifier object that Firebase can use
-    ...createVerifier(),
-    close: () => {
-      setVisible(false);
-    }
-  }));
+  useImperativeHandle(ref, () => {
+    const verifier = createVerifier();
+    return verifier || {
+      type: 'recaptcha',
+      verify: () => Promise.reject(new Error('Verifier not initialized'))
+    };
+  }, [createVerifier]);
 
   const handleMessage = useCallback((event) => {
     try {
@@ -62,7 +106,6 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
       } else if (data.type === 'recaptcha-loaded') {
         setLoading(false);
       } else if (data.type === 'recaptcha-expired') {
-        // Handle expired token - user needs to verify again
         setLoading(false);
       }
     } catch (e) {
@@ -80,7 +123,7 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
     }
   }, [onClose]);
 
-  // HTML content for the reCAPTCHA widget
+  // HTML content for the reCAPTCHA widget (for mobile)
   const recaptchaHTML = `
     <!DOCTYPE html>
     <html>
@@ -139,23 +182,19 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
           try {
             const firebaseConfig = ${JSON.stringify(firebaseConfig)};
             
-            // Initialize Firebase if not already initialized
             if (!firebase.apps.length) {
               firebase.initializeApp(firebaseConfig);
             }
             
-            // Create reCAPTCHA verifier
             window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
               size: 'normal',
               callback: function(token) {
-                // reCAPTCHA solved - send token back to React Native
                 window.ReactNativeWebView.postMessage(JSON.stringify({
                   type: 'recaptcha-verified',
                   token: token
                 }));
               },
               'expired-callback': function() {
-                // reCAPTCHA expired
                 window.ReactNativeWebView.postMessage(JSON.stringify({
                   type: 'recaptcha-expired',
                   message: 'reCAPTCHA expired. Please try again.'
@@ -169,7 +208,6 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
               }
             });
             
-            // Render the reCAPTCHA widget
             window.recaptchaVerifier.render().then(function(widgetId) {
               document.getElementById('loading').style.display = 'none';
               window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -200,11 +238,12 @@ const WebRecaptcha = forwardRef(({ firebaseConfig, onVerify, onError, onClose },
     </html>
   `;
 
-  // For web platform, return null (web has its own reCAPTCHA handling)
+  // For web platform, render a hidden container
   if (Platform.OS === 'web') {
-    return null;
+    return <div id="recaptcha-container" style={{ display: 'none' }} />;
   }
 
+  // For mobile platforms, render modal with WebView
   return (
     <Modal
       visible={visible}

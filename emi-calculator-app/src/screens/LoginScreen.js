@@ -10,14 +10,16 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import { RecaptchaVerifier } from 'firebase/auth';
 import WebRecaptcha from '../components/WebRecaptcha';
-import { app, firebaseConfig } from '../config/firebase';
+import { app, firebaseConfig, auth } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
 
 export default function LoginScreen({ navigation }) {
   const { sendOTP, verifyOTP, updateProfile } = useAuth();
   const recaptchaRef = useRef(null);
+  const webRecaptchaVerifier = useRef(null);
 
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState('');
@@ -26,10 +28,51 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [confirmation, setConfirmation] = useState(null);
+  const [recaptchaReady, setRecaptchaReady] = useState(Platform.OS !== 'web');
 
-  // Log Firebase app status on mount
+  // Initialize web reCAPTCHA on mount
   useEffect(() => {
     console.log('LoginScreen mounted, Firebase app:', app?.name);
+    
+    // For web platform, initialize Firebase RecaptchaVerifier
+    if (Platform.OS === 'web' && auth) {
+      try {
+        // Create invisible reCAPTCHA verifier
+        webRecaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: (response) => {
+            console.log('reCAPTCHA solved:', response);
+          },
+          'expired-callback': () => {
+            console.log('reCAPTCHA expired');
+            setError('Verification expired. Please try again.');
+          }
+        });
+        
+        // Render the reCAPTCHA
+        webRecaptchaVerifier.current.render().then(() => {
+          console.log('Web reCAPTCHA rendered successfully');
+          setRecaptchaReady(true);
+        }).catch((err) => {
+          console.error('Failed to render reCAPTCHA:', err);
+          setRecaptchaReady(true); // Still allow attempts
+        });
+      } catch (err) {
+        console.error('Failed to initialize web reCAPTCHA:', err);
+        setRecaptchaReady(true); // Still allow attempts
+      }
+    }
+    
+    return () => {
+      // Cleanup web reCAPTCHA on unmount
+      if (webRecaptchaVerifier.current) {
+        try {
+          webRecaptchaVerifier.current.clear();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
+    };
   }, []);
 
   const handleSendOTP = async () => {
@@ -42,8 +85,17 @@ export default function LoginScreen({ navigation }) {
     setError('');
 
     try {
-      // Use the WebRecaptcha component for verification
-      const result = await sendOTP(phoneNumber, recaptchaRef.current);
+      // Use appropriate verifier based on platform
+      let verifier;
+      if (Platform.OS === 'web') {
+        verifier = webRecaptchaVerifier.current;
+        console.log('Using web reCAPTCHA verifier');
+      } else {
+        verifier = recaptchaRef.current;
+        console.log('Using mobile WebRecaptcha component');
+      }
+      
+      const result = await sendOTP(phoneNumber, verifier);
       if (result.success) {
         setConfirmation(result.confirmation);
         setStep('otp');
@@ -102,11 +154,17 @@ export default function LoginScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <WebRecaptcha
-        ref={recaptchaRef}
-        firebaseConfig={firebaseConfig}
-        onError={(err) => setError(err.message)}
-      />
+      {/* Web reCAPTCHA container - invisible */}
+      {Platform.OS === 'web' && <View nativeID="recaptcha-container" />}
+      
+      {/* Mobile WebRecaptcha component */}
+      {Platform.OS !== 'web' && (
+        <WebRecaptcha
+          ref={recaptchaRef}
+          firebaseConfig={firebaseConfig}
+          onError={(err) => setError(err.message)}
+        />
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
