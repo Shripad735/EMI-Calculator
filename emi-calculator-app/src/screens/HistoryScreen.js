@@ -72,6 +72,8 @@ export default function HistoryScreen({ navigation }) {
       sip: '💹',
       gst: '🧾',
       compare: '⚖️',
+      tvm: '⏰',
+      ppf: '🏛️',
     };
     return icons[type] || '📱';
   };
@@ -84,6 +86,8 @@ export default function HistoryScreen({ navigation }) {
       sip: 'SIP Calculator',
       gst: 'GST Calculator',
       compare: 'Compare Loans',
+      tvm: 'TVM Calculator',
+      ppf: 'PPF Calculator',
     };
     return names[type] || 'Calculator';
   };
@@ -185,6 +189,41 @@ export default function HistoryScreen({ navigation }) {
               <View style={styles.historyResult}>
                 <Text style={styles.resultLabel}>Net Amount</Text>
                 <Text style={styles.resultValue}>₹{result.netAmount.toFixed(2)}</Text>
+              </View>
+            </>
+          )}
+
+          {type === 'tvm' && (
+            <>
+              <View style={styles.historyRow}>
+                <Text style={styles.historyLabel}>Variable: {result.calculatedVariable || data.calculateVariable}</Text>
+                <Text style={styles.historyLabel}>Rate: {data.interestRate}%</Text>
+              </View>
+              <View style={styles.historyRow}>
+                <Text style={styles.historyLabel}>Periods: {data.numberOfPeriods} years</Text>
+                <Text style={styles.historyLabel}>{data.compoundingFrequency}</Text>
+              </View>
+              <View style={styles.historyResult}>
+                <Text style={styles.resultLabel}>{result.calculatedVariable || data.calculateVariable} Value</Text>
+                <Text style={styles.resultValue}>{formatIndianCurrency(result.calculatedValue)}</Text>
+              </View>
+            </>
+          )}
+
+          {type === 'ppf' && (
+            <>
+              <Text style={styles.historyAmount}>{formatIndianCurrency(data.annualDeposit)}/year</Text>
+              <View style={styles.historyRow}>
+                <Text style={styles.historyLabel}>Rate: {data.interestRate}%</Text>
+                <Text style={styles.historyLabel}>Duration: {data.durationYears} years</Text>
+              </View>
+              <View style={styles.historyResult}>
+                <Text style={styles.resultLabel}>Maturity Amount</Text>
+                <Text style={styles.resultValue}>{formatIndianCurrency(result.maturityAmount)}</Text>
+              </View>
+              <View style={styles.historyRow}>
+                <Text style={styles.historyLabel}>Investment: {formatIndianCurrency(result.totalInvestment)}</Text>
+                <Text style={styles.historyLabel}>Interest: {formatIndianCurrency(result.interestEarned)}</Text>
               </View>
             </>
           )}

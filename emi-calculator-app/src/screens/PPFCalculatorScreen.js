@@ -107,12 +107,17 @@ export default function PPFCalculatorScreen({ navigation }) {
     try {
       await saveToHistory({
         type: 'ppf',
-        data: { depositAmount, interestRate, investmentDate: investmentDate.toISOString(), durationYears },
+        data: { 
+          annualDeposit: depositAmount, 
+          interestRate, 
+          investmentDate: investmentDate.toISOString(), 
+          durationYears 
+        },
         result,
       });
       Alert.alert('Success', 'Saved to history successfully!');
     } catch (error) {
-      console.error('Error saving to history:', error);
+      console.error('Error', error);
       Alert.alert('Error', 'Failed to save to history. Please try again.');
     }
   };
