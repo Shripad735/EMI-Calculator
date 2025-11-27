@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, Alert } from 'react-native';
-import CustomSlider from '../components/CustomSlider';
+
 import { calculateSIP } from '../utils/sipCalculator';
 import { formatIndianCurrency } from '../utils/currencyFormatter';
 import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
@@ -10,14 +10,37 @@ import { useAuth } from '../context/AuthContext';
 export default function SIPCalculatorScreen({ navigation }) {
   const { user } = useAuth();
   const [monthlyInvestment, setMonthlyInvestment] = useState(5000);
-  const [expectedReturn, setExpectedReturn] = useState(12);
+  const [expectedReturn, setExpectedReturn] = useState('12');
   const [tenureYears, setTenureYears] = useState(10);
   const [result, setResult] = useState(null);
 
-  useEffect(() => {
-    const calculated = calculateSIP({ monthlyInvestment, expectedReturn, tenureYears });
+  const handleCalculate = () => {
+    const returnNum = parseFloat(expectedReturn);
+    
+    // Validate inputs
+    if (monthlyInvestment <= 0) {
+      Alert.alert('Invalid Input', 'Please enter a valid monthly investment amount');
+      return;
+    }
+    if (isNaN(returnNum) || returnNum < 0 || returnNum > 30) {
+      Alert.alert('Invalid Input', 'Expected return must be between 0% and 30%');
+      return;
+    }
+    if (tenureYears < 1 || tenureYears > 40) {
+      Alert.alert('Invalid Input', 'Investment period must be between 1 and 40 years');
+      return;
+    }
+
+    const calculated = calculateSIP({ monthlyInvestment, expectedReturn: returnNum, tenureYears });
     setResult(calculated);
-  }, [monthlyInvestment, expectedReturn, tenureYears]);
+  };
+
+  const handleReset = () => {
+    setMonthlyInvestment(5000);
+    setExpectedReturn('12');
+    setTenureYears(10);
+    setResult(null);
+  };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -33,31 +56,56 @@ export default function SIPCalculatorScreen({ navigation }) {
           <View style={styles.section}>
             <View style={styles.sliderHeader}>
               <Text style={styles.sectionLabel}>Monthly Investment</Text>
-              <TextInput style={styles.valueInput} value={monthlyInvestment.toString()} onChangeText={(text) => { const num = parseFloat(text) || 0; if (num >= 500 && num <= 100000) setMonthlyInvestment(num); }} keyboardType="numeric" />
+              <TextInput style={styles.valueInput} value={monthlyInvestment.toString()} onChangeText={(text) => { if (text === '') { setMonthlyInvestment(0); return; } const num = parseFloat(text); if (!isNaN(num)) { setMonthlyInvestment(num); } }} keyboardType="numeric" />
             </View>
             <Text style={styles.formattedValue}>{formatIndianCurrency(monthlyInvestment)}</Text>
-            <CustomSlider style={styles.slider} minimumValue={500} maximumValue={100000} step={500} value={monthlyInvestment} onValueChange={setMonthlyInvestment} minimumTrackTintColor={colors.primary} maximumTrackTintColor={colors.border} thumbTintColor={colors.primary} />
-            <View style={styles.sliderLabels}><Text style={styles.sliderLabelText}>₹500</Text><Text style={styles.sliderLabelText}>₹1L</Text></View>
+            <Text style={styles.rangeHint}>Range: ₹500 - ₹1 Lakh</Text>
           </View>
 
           <View style={styles.section}>
             <View style={styles.sliderHeader}>
               <Text style={styles.sectionLabel}>Expected Return</Text>
-              <TextInput style={styles.valueInput} value={expectedReturn.toString()} onChangeText={(text) => { const num = parseFloat(text) || 0; if (num >= 1 && num <= 30) setExpectedReturn(num); }} keyboardType="decimal-pad" />
+              <TextInput 
+                style={styles.valueInput} 
+                value={expectedReturn} 
+                onChangeText={(text) => { 
+                  // Allow empty string
+                  if (text === '') { 
+                    setExpectedReturn(''); 
+                    return; 
+                  } 
+                  // Allow decimal input up to 2 decimal places
+                  if (/^\d*\.?\d{0,2}$/.test(text)) { 
+                    setExpectedReturn(text); 
+                  } 
+                }} 
+                keyboardType="decimal-pad" 
+                placeholder="0.0"
+              />
             </View>
-            <Text style={styles.formattedValue}>{expectedReturn.toFixed(1)}% per annum</Text>
-            <CustomSlider style={styles.slider} minimumValue={1} maximumValue={30} step={0.5} value={expectedReturn} onValueChange={setExpectedReturn} minimumTrackTintColor={colors.primary} maximumTrackTintColor={colors.border} thumbTintColor={colors.primary} />
-            <View style={styles.sliderLabels}><Text style={styles.sliderLabelText}>1%</Text><Text style={styles.sliderLabelText}>30%</Text></View>
+            <Text style={styles.formattedValue}>
+              {expectedReturn ? `${parseFloat(expectedReturn).toFixed(1)}% per annum` : '0.0% per annum'}
+            </Text>
+            <Text style={styles.rangeHint}>Range: 0% - 30%</Text>
           </View>
 
           <View style={styles.section}>
             <View style={styles.sliderHeader}>
               <Text style={styles.sectionLabel}>Investment Period</Text>
-              <TextInput style={styles.valueInput} value={tenureYears.toString()} onChangeText={(text) => { const num = parseInt(text) || 0; if (num >= 1 && num <= 40) setTenureYears(num); }} keyboardType="numeric" />
+              <TextInput style={styles.valueInput} value={tenureYears.toString()} onChangeText={(text) => { if (text === '') { setTenureYears(0); return; } const num = parseInt(text); if (!isNaN(num)) { setTenureYears(num); } }} keyboardType="numeric" />
             </View>
             <Text style={styles.formattedValue}>{tenureYears} Years</Text>
-            <CustomSlider style={styles.slider} minimumValue={1} maximumValue={40} step={1} value={tenureYears} onValueChange={setTenureYears} minimumTrackTintColor={colors.primary} maximumTrackTintColor={colors.border} thumbTintColor={colors.primary} />
-            <View style={styles.sliderLabels}><Text style={styles.sliderLabelText}>1Y</Text><Text style={styles.sliderLabelText}>40Y</Text></View>
+            <Text style={styles.rangeHint}>Range: 1 - 40 Years</Text>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+              <Text style={styles.resetButtonText}>Reset</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.calculateButton} onPress={handleCalculate}>
+              <Text style={styles.calculateButtonText}>Calculate</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -109,10 +157,8 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semibold, color: colors.text },
   sliderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
   valueInput: { backgroundColor: colors.backgroundSecondary, borderRadius: borderRadius.base, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, minWidth: 100, fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semibold, color: colors.primary, textAlign: 'right' },
-  formattedValue: { fontSize: typography.fontSize.sm, color: colors.textLight, marginBottom: spacing.sm, textAlign: 'center' },
-  slider: { width: '100%', height: 40 },
-  sliderLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs },
-  sliderLabelText: { fontSize: typography.fontSize.xs, color: colors.textMuted },
+  formattedValue: { fontSize: typography.fontSize.sm, color: colors.textLight, marginBottom: spacing.xs, textAlign: 'center' },
+  rangeHint: { fontSize: typography.fontSize.xs, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xs },
   resultContainer: { marginBottom: spacing.xl },
   resultTitle: { fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.bold, color: colors.text, marginBottom: spacing.base },
   maturityCard: { backgroundColor: '#ec4899', borderRadius: borderRadius.lg, padding: spacing.xl, alignItems: 'center', marginBottom: spacing.base, ...shadows.md },
@@ -124,6 +170,11 @@ const styles = StyleSheet.create({
   detailValue: { fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.bold, color: colors.text },
   interestValue: { color: '#ec4899' },
   detailDivider: { height: 1, backgroundColor: colors.borderLight, marginVertical: spacing.xs },
+  buttonContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.base },
+  resetButton: { flex: 1, backgroundColor: colors.backgroundSecondary, borderRadius: borderRadius.md, paddingVertical: spacing.md, marginRight: spacing.sm, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  resetButtonText: { color: colors.text, fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semibold },
+  calculateButton: { flex: 1, backgroundColor: colors.primary, borderRadius: borderRadius.md, paddingVertical: spacing.md, marginLeft: spacing.sm, alignItems: 'center', ...shadows.sm },
+  calculateButtonText: { color: colors.background, fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semibold },
   saveButton: { backgroundColor: colors.primary, borderRadius: borderRadius.md, paddingVertical: spacing.md, alignItems: 'center', ...shadows.sm },
   saveButtonText: { color: colors.background, fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semibold },
 });

@@ -9,7 +9,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import CustomSlider from '../components/CustomSlider';
+
 import { calculateFD } from '../utils/fdCalculator';
 import { formatIndianCurrency } from '../utils/currencyFormatter';
 import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
@@ -19,18 +19,41 @@ import { useAuth } from '../context/AuthContext';
 export default function FDCalculatorScreen({ navigation }) {
   const { user } = useAuth();
   const [principal, setPrincipal] = useState(100000);
-  const [interestRate, setInterestRate] = useState(6.5);
+  const [interestRate, setInterestRate] = useState('6.5');
   const [tenure, setTenure] = useState(12);
   const [result, setResult] = useState(null);
 
-  useEffect(() => {
+  const handleCalculate = () => {
+    const rateNum = parseFloat(interestRate);
+    
+    // Validate inputs
+    if (principal <= 0) {
+      Alert.alert('Invalid Input', 'Please enter a valid principal amount');
+      return;
+    }
+    if (isNaN(rateNum) || rateNum < 0 || rateNum > 15) {
+      Alert.alert('Invalid Input', 'Interest rate must be between 0% and 15%');
+      return;
+    }
+    if (tenure < 1 || tenure > 120) {
+      Alert.alert('Invalid Input', 'Tenure must be between 1 and 120 months');
+      return;
+    }
+
     const calculated = calculateFD({
       principal,
-      annualRate: interestRate,
+      annualRate: rateNum,
       tenureMonths: tenure,
     });
     setResult(calculated);
-  }, [principal, interestRate, tenure]);
+  };
+
+  const handleReset = () => {
+    setPrincipal(100000);
+    setInterestRate('6.5');
+    setTenure(12);
+    setResult(null);
+  };
 
   const handleSaveToHistory = async () => {
     // Check if user is logged in
@@ -80,28 +103,20 @@ export default function FDCalculatorScreen({ navigation }) {
                 style={styles.valueInput}
                 value={principal.toString()}
                 onChangeText={(text) => {
-                  const num = parseFloat(text) || 0;
-                  if (num >= 1000 && num <= 10000000) setPrincipal(num);
+                  if (text === '') {
+                    setPrincipal(0);
+                    return;
+                  }
+                  const num = parseFloat(text);
+                  if (!isNaN(num)) {
+                    setPrincipal(num);
+                  }
                 }}
                 keyboardType="numeric"
               />
             </View>
             <Text style={styles.formattedValue}>{formatIndianCurrency(principal)}</Text>
-            <CustomSlider
-              style={styles.slider}
-              minimumValue={1000}
-              maximumValue={10000000}
-              step={1000}
-              value={principal}
-              onValueChange={setPrincipal}
-              minimumTrackTintColor={colors.primary}
-              maximumTrackTintColor={colors.border}
-              thumbTintColor={colors.primary}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>₹1K</Text>
-              <Text style={styles.sliderLabelText}>₹1Cr</Text>
-            </View>
+            <Text style={styles.rangeHint}>Range: ₹1,000 - ₹1 Crore</Text>
           </View>
 
           {/* Interest Rate */}
@@ -110,30 +125,26 @@ export default function FDCalculatorScreen({ navigation }) {
               <Text style={styles.sectionLabel}>Interest Rate</Text>
               <TextInput
                 style={styles.valueInput}
-                value={interestRate.toString()}
+                value={interestRate}
                 onChangeText={(text) => {
-                  const num = parseFloat(text) || 0;
-                  if (num >= 1 && num <= 15) setInterestRate(num);
+                  // Allow empty string
+                  if (text === '') {
+                    setInterestRate('');
+                    return;
+                  }
+                  // Allow decimal input up to 2 decimal places
+                  if (/^\d*\.?\d{0,2}$/.test(text)) {
+                    setInterestRate(text);
+                  }
                 }}
                 keyboardType="decimal-pad"
+                placeholder="0.0"
               />
             </View>
-            <Text style={styles.formattedValue}>{interestRate.toFixed(1)}% per annum</Text>
-            <CustomSlider
-              style={styles.slider}
-              minimumValue={1}
-              maximumValue={15}
-              step={0.1}
-              value={interestRate}
-              onValueChange={setInterestRate}
-              minimumTrackTintColor={colors.primary}
-              maximumTrackTintColor={colors.border}
-              thumbTintColor={colors.primary}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>1%</Text>
-              <Text style={styles.sliderLabelText}>15%</Text>
-            </View>
+            <Text style={styles.formattedValue}>
+              {interestRate ? `${parseFloat(interestRate).toFixed(1)}% per annum` : '0.0% per annum'}
+            </Text>
+            <Text style={styles.rangeHint}>Range: 0% - 15%</Text>
           </View>
 
           {/* Tenure */}
@@ -144,28 +155,30 @@ export default function FDCalculatorScreen({ navigation }) {
                 style={styles.valueInput}
                 value={tenure.toString()}
                 onChangeText={(text) => {
-                  const num = parseInt(text) || 0;
-                  if (num >= 3 && num <= 120) setTenure(num);
+                  if (text === '') {
+                    setTenure(0);
+                    return;
+                  }
+                  const num = parseInt(text);
+                  if (!isNaN(num)) {
+                    setTenure(num);
+                  }
                 }}
                 keyboardType="numeric"
               />
             </View>
             <Text style={styles.formattedValue}>{tenure} Months ({(tenure / 12).toFixed(1)} Years)</Text>
-            <CustomSlider
-              style={styles.slider}
-              minimumValue={3}
-              maximumValue={120}
-              step={3}
-              value={tenure}
-              onValueChange={setTenure}
-              minimumTrackTintColor={colors.primary}
-              maximumTrackTintColor={colors.border}
-              thumbTintColor={colors.primary}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>3M</Text>
-              <Text style={styles.sliderLabelText}>10Y</Text>
-            </View>
+            <Text style={styles.rangeHint}>Range: 1 - 120 Months</Text>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+              <Text style={styles.resetButtonText}>Reset</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.calculateButton} onPress={handleCalculate}>
+              <Text style={styles.calculateButtonText}>Calculate</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -267,21 +280,14 @@ const styles = StyleSheet.create({
   formattedValue: {
     fontSize: typography.fontSize.sm,
     color: colors.textLight,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     textAlign: 'center',
   },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.xs,
-  },
-  sliderLabelText: {
+  rangeHint: {
     fontSize: typography.fontSize.xs,
     color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
   resultContainer: {
     marginBottom: spacing.xl,
@@ -341,6 +347,40 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.borderLight,
     marginVertical: spacing.xs,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.base,
+  },
+  resetButton: {
+    flex: 1,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    marginRight: spacing.sm,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  resetButtonText: {
+    color: colors.text,
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  calculateButton: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    marginLeft: spacing.sm,
+    alignItems: 'center',
+    ...shadows.sm,
+  },
+  calculateButtonText: {
+    color: colors.background,
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
   },
   saveButton: {
     backgroundColor: colors.primary,

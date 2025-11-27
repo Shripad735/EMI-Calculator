@@ -9,7 +9,6 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import CustomSlider from '../components/CustomSlider';
 import { calculatePPF } from '../utils/ppfCalculator';
 import { formatIndianCurrency } from '../utils/currencyFormatter';
 import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
@@ -137,86 +136,50 @@ export default function PPFCalculatorScreen({ navigation }) {
         <View style={styles.calculatorCard}>
           {/* Deposit Amount */}
           <View style={styles.section}>
-            <View style={styles.sliderHeader}>
-              <Text style={styles.sectionLabel}>Annual Deposit</Text>
-              <TextInput
-                style={[styles.valueInput, errors.depositAmount && styles.inputError]}
-                value={depositAmount.toString()}
-                onChangeText={(text) => {
-                  // Allow empty string and valid numbers
-                  if (text === '' || /^\d+$/.test(text)) {
-                    const num = text === '' ? 0 : parseInt(text);
-                    setDepositAmount(num);
-                    setErrors({ ...errors, depositAmount: null });
-                  }
-                }}
-                keyboardType="numeric"
-              />
-            </View>
+            <Text style={styles.sectionLabel}>Annual Deposit (₹500 - ₹1,50,000)</Text>
+            <TextInput
+              style={[styles.fullWidthInput, errors.depositAmount && styles.inputError]}
+              value={depositAmount.toString()}
+              onChangeText={(text) => {
+                // Allow empty string and valid numbers
+                if (text === '' || /^\d+$/.test(text)) {
+                  const num = text === '' ? 0 : parseInt(text);
+                  setDepositAmount(num);
+                  setErrors({ ...errors, depositAmount: null });
+                }
+              }}
+              keyboardType="numeric"
+              placeholder="Enter annual deposit amount"
+              placeholderTextColor={colors.textMuted}
+            />
             <Text style={styles.formattedValue}>{formatIndianCurrency(depositAmount)}</Text>
             {errors.depositAmount && (
               <Text style={styles.errorText}>{errors.depositAmount}</Text>
             )}
-            <CustomSlider
-              style={styles.slider}
-              minimumValue={500}
-              maximumValue={150000}
-              step={500}
-              value={depositAmount}
-              onValueChange={(value) => {
-                setDepositAmount(value);
-                setErrors({ ...errors, depositAmount: null });
-              }}
-              minimumTrackTintColor={colors.primary}
-              maximumTrackTintColor={colors.border}
-              thumbTintColor={colors.primary}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>₹500</Text>
-              <Text style={styles.sliderLabelText}>₹1.5L</Text>
-            </View>
           </View>
 
           {/* Interest Rate */}
           <View style={styles.section}>
-            <View style={styles.sliderHeader}>
-              <Text style={styles.sectionLabel}>Interest Rate</Text>
-              <TextInput
-                style={[styles.valueInput, errors.interestRate && styles.inputError]}
-                value={interestRate.toString()}
-                onChangeText={(text) => {
-                  // Allow empty string, numbers, and decimal point
-                  if (text === '' || text === '.' || text === '0.' || /^\d*\.?\d*$/.test(text)) {
-                    const num = text === '' || text === '.' || text === '0.' ? 0 : parseFloat(text);
-                    setInterestRate(num);
-                    setErrors({ ...errors, interestRate: null });
-                  }
-                }}
-                keyboardType="decimal-pad"
-              />
-            </View>
+            <Text style={styles.sectionLabel}>Interest Rate (0.1% - 50%)</Text>
+            <TextInput
+              style={[styles.fullWidthInput, errors.interestRate && styles.inputError]}
+              value={interestRate.toString()}
+              onChangeText={(text) => {
+                // Allow empty string, numbers, and decimal point
+                if (text === '' || text === '.' || text === '0.' || /^\d*\.?\d*$/.test(text)) {
+                  const num = text === '' || text === '.' || text === '0.' ? 0 : parseFloat(text);
+                  setInterestRate(num);
+                  setErrors({ ...errors, interestRate: null });
+                }
+              }}
+              keyboardType="decimal-pad"
+              placeholder="Enter interest rate (e.g., 7.1)"
+              placeholderTextColor={colors.textMuted}
+            />
             <Text style={styles.formattedValue}>{interestRate.toFixed(1)}% per annum</Text>
             {errors.interestRate && (
               <Text style={styles.errorText}>{errors.interestRate}</Text>
             )}
-            <CustomSlider
-              style={styles.slider}
-              minimumValue={0.1}
-              maximumValue={50}
-              step={0.1}
-              value={interestRate}
-              onValueChange={(value) => {
-                setInterestRate(value);
-                setErrors({ ...errors, interestRate: null });
-              }}
-              minimumTrackTintColor={colors.primary}
-              maximumTrackTintColor={colors.border}
-              thumbTintColor={colors.primary}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>0.1%</Text>
-              <Text style={styles.sliderLabelText}>50%</Text>
-            </View>
           </View>
 
           {/* Investment Date */}
@@ -230,44 +193,26 @@ export default function PPFCalculatorScreen({ navigation }) {
 
           {/* Duration */}
           <View style={styles.section}>
-            <View style={styles.sliderHeader}>
-              <Text style={styles.sectionLabel}>Investment Duration</Text>
-              <TextInput
-                style={[styles.valueInput, errors.durationYears && styles.inputError]}
-                value={durationYears.toString()}
-                onChangeText={(text) => {
-                  // Allow empty string and valid numbers
-                  if (text === '' || /^\d+$/.test(text)) {
-                    const num = text === '' ? 0 : parseInt(text);
-                    setDurationYears(num);
-                    setErrors({ ...errors, durationYears: null });
-                  }
-                }}
-                keyboardType="numeric"
-              />
-            </View>
+            <Text style={styles.sectionLabel}>Investment Duration (15 - 30 years)</Text>
+            <TextInput
+              style={[styles.fullWidthInput, errors.durationYears && styles.inputError]}
+              value={durationYears.toString()}
+              onChangeText={(text) => {
+                // Allow empty string and valid numbers
+                if (text === '' || /^\d+$/.test(text)) {
+                  const num = text === '' ? 0 : parseInt(text);
+                  setDurationYears(num);
+                  setErrors({ ...errors, durationYears: null });
+                }
+              }}
+              keyboardType="numeric"
+              placeholder="Enter duration in years (15-30)"
+              placeholderTextColor={colors.textMuted}
+            />
             <Text style={styles.formattedValue}>{durationYears} Years</Text>
             {errors.durationYears && (
               <Text style={styles.errorText}>{errors.durationYears}</Text>
             )}
-            <CustomSlider
-              style={styles.slider}
-              minimumValue={15}
-              maximumValue={30}
-              step={1}
-              value={durationYears}
-              onValueChange={(value) => {
-                setDurationYears(value);
-                setErrors({ ...errors, durationYears: null });
-              }}
-              minimumTrackTintColor={colors.primary}
-              maximumTrackTintColor={colors.border}
-              thumbTintColor={colors.primary}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>15Y</Text>
-              <Text style={styles.sliderLabelText}>30Y</Text>
-            </View>
           </View>
 
           {/* Action Buttons */}
@@ -356,53 +301,33 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.semibold,
     color: colors.text,
+    marginBottom: spacing.sm,
   },
-  sliderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  valueInput: {
+  fullWidthInput: {
     backgroundColor: colors.backgroundSecondary,
     borderRadius: borderRadius.base,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    minWidth: 100,
-    fontSize: typography.fontSize.base,
+    paddingVertical: spacing.md,
+    fontSize: typography.fontSize.lg,
     fontWeight: typography.fontWeight.semibold,
     color: colors.primary,
-    textAlign: 'right',
+    textAlign: 'center',
   },
   inputError: {
     borderColor: colors.error,
   },
   formattedValue: {
     fontSize: typography.fontSize.sm,
-    color: colors.textLight,
-    marginBottom: spacing.sm,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
     textAlign: 'center',
   },
   errorText: {
     fontSize: typography.fontSize.xs,
     color: colors.error,
     marginTop: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.xs,
-  },
-  sliderLabelText: {
-    fontSize: typography.fontSize.xs,
-    color: colors.textMuted,
   },
   datePickerContainer: {
     backgroundColor: colors.backgroundSecondary,

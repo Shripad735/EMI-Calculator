@@ -8,7 +8,7 @@ import {
   StyleSheet,
   Platform,
 } from 'react-native';
-import CustomSlider from '../components/CustomSlider';
+
 import { calculateEMI } from '../utils/emiCalculator';
 import { formatIndianCurrency } from '../utils/currencyFormatter';
 import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
@@ -44,28 +44,40 @@ export default function HomeScreen({ navigation }) {
     { value: 'Vehicle', label: 'Vehicle Loan', icon: '🚗' },
   ];
 
-  // Calculate EMI automatically
-  useEffect(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
+  // Handle Calculate button
+  const handleCalculate = () => {
+    // Validate inputs
+    if (loanAmount <= 0) {
+      alert('Please enter a valid loan amount');
+      return;
+    }
+    if (interestRate < 0 || interestRate > 30) {
+      alert('Interest rate must be between 0% and 30%');
+      return;
+    }
+    if (tenure < 1) {
+      alert('Tenure must be at least 1 ' + (tenureUnit === 'months' ? 'month' : 'year'));
+      return;
     }
 
-    debounceTimerRef.current = setTimeout(() => {
-      const tenureMonths = tenureUnit === 'years' ? tenure * 12 : tenure;
-      const calculatedResult = calculateEMI({
-        principal: loanAmount,
-        annualRate: interestRate,
-        tenureMonths,
-      });
-      setResult(calculatedResult);
-    }, 300);
+    const tenureMonths = tenureUnit === 'years' ? tenure * 12 : tenure;
+    const calculatedResult = calculateEMI({
+      principal: loanAmount,
+      annualRate: interestRate,
+      tenureMonths,
+    });
+    setResult(calculatedResult);
+  };
 
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [loanAmount, interestRate, tenure, tenureUnit]);
+  // Handle Reset button
+  const handleReset = () => {
+    setLoanAmount(500000);
+    setInterestRate(8.5);
+    setTenure(12);
+    setTenureUnit('months');
+    setLoanType('Personal');
+    setResult(null);
+  };
 
   // Handle tenure unit toggle
   const handleTenureUnitChange = (newUnit) => {
@@ -204,8 +216,8 @@ export default function HomeScreen({ navigation }) {
                       setLoanAmount(0);
                       return;
                     }
-                    const numValue = parseFloat(text.replace(/,/g, '')) || 0;
-                    if (numValue <= 10000000) {
+                    const numValue = parseFloat(text.replace(/,/g, ''));
+                    if (!isNaN(numValue)) {
                       setLoanAmount(numValue);
                     }
                   }}
@@ -215,21 +227,7 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
             <Text style={styles.formattedValue}>{formatIndianCurrency(loanAmount)}</Text>
-            <CustomSlider
-              style={styles.slider}
-              minimumValue={0}
-              maximumValue={10000000}
-              step={10000}
-              value={loanAmount}
-              onValueChange={setLoanAmount}
-              minimumTrackTintColor={colors.primary}
-              maximumTrackTintColor={colors.border}
-              thumbTintColor={colors.primary}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>₹0</Text>
-              <Text style={styles.sliderLabelText}>₹1Cr</Text>
-            </View>
+            <Text style={styles.rangeHint}>Range: ₹0 - ₹1 Crore</Text>
           </View>
 
           {/* Interest Rate Slider */}
@@ -248,8 +246,9 @@ export default function HomeScreen({ navigation }) {
                       setInterestRate(0);
                       return;
                     }
-                    const numValue = parseFloat(text) || 0;
-                    if (numValue <= 30) {
+                    // Allow any decimal input without validation
+                    const numValue = parseFloat(text);
+                    if (!isNaN(numValue)) {
                       setInterestRate(numValue);
                     }
                   }}
@@ -259,21 +258,7 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
             <Text style={styles.formattedValue}>{interestRate.toFixed(1)}% per annum</Text>
-            <CustomSlider
-              style={styles.slider}
-              minimumValue={0}
-              maximumValue={30}
-              step={0.1}
-              value={interestRate}
-              onValueChange={setInterestRate}
-              minimumTrackTintColor={colors.primary}
-              maximumTrackTintColor={colors.border}
-              thumbTintColor={colors.primary}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>0%</Text>
-              <Text style={styles.sliderLabelText}>30%</Text>
-            </View>
+            <Text style={styles.rangeHint}>Range: 0% - 30%</Text>
           </View>
 
           {/* Tenure Slider with Unit Toggle */}
@@ -292,9 +277,8 @@ export default function HomeScreen({ navigation }) {
                       setTenure(0);
                       return;
                     }
-                    const numValue = parseInt(text) || 0;
-                    const maxValue = tenureUnit === 'months' ? 360 : 30;
-                    if (numValue <= maxValue) {
+                    const numValue = parseInt(text);
+                    if (!isNaN(numValue)) {
                       setTenure(numValue);
                     }
                   }}
@@ -342,24 +326,19 @@ export default function HomeScreen({ navigation }) {
                 </Text>
               </TouchableOpacity>
             </View>
+            <Text style={styles.rangeHint}>
+              Range: 1 - {tenureUnit === 'months' ? '360 Months' : '30 Years'}
+            </Text>
+          </View>
 
-            <CustomSlider
-              style={styles.slider}
-              minimumValue={0}
-              maximumValue={tenureUnit === 'months' ? 360 : 30}
-              step={1}
-              value={tenure}
-              onValueChange={setTenure}
-              minimumTrackTintColor={colors.primary}
-              maximumTrackTintColor={colors.border}
-              thumbTintColor={colors.primary}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>0</Text>
-              <Text style={styles.sliderLabelText}>
-                {tenureUnit === 'months' ? '360 Months' : '30 Years'}
-              </Text>
-            </View>
+          {/* Action Buttons */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+              <Text style={styles.resetButtonText}>Reset</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.calculateButton} onPress={handleCalculate}>
+              <Text style={styles.calculateButtonText}>Calculate</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -615,21 +594,48 @@ const styles = StyleSheet.create({
   formattedValue: {
     fontSize: typography.fontSize.sm,
     color: colors.textLight,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     textAlign: 'center',
   },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.xs,
-  },
-  sliderLabelText: {
+  rangeHint: {
     fontSize: typography.fontSize.xs,
     color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.base,
+  },
+  resetButton: {
+    flex: 1,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    marginRight: spacing.sm,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  resetButtonText: {
+    color: colors.text,
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  calculateButton: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    marginLeft: spacing.sm,
+    alignItems: 'center',
+    ...shadows.sm,
+  },
+  calculateButtonText: {
+    color: colors.background,
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
   },
   toggleContainer: {
     flexDirection: 'row',

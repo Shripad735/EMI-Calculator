@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import CustomSlider from '../components/CustomSlider';
+
 import { calculateRD } from '../utils/rdCalculator';
 import { formatIndianCurrency } from '../utils/currencyFormatter';
 import { colors, typography, spacing, borderRadius, shadows } from '../constants/colors';
@@ -19,18 +19,41 @@ import { useAuth } from '../context/AuthContext';
 export default function RDCalculatorScreen({ navigation }) {
   const { user } = useAuth();
   const [monthlyDeposit, setMonthlyDeposit] = useState(5000);
-  const [interestRate, setInterestRate] = useState(6.5);
+  const [interestRate, setInterestRate] = useState('6.5');
   const [tenure, setTenure] = useState(12);
   const [result, setResult] = useState(null);
 
-  useEffect(() => {
+  const handleCalculate = () => {
+    const rateNum = parseFloat(interestRate);
+    
+    // Validate inputs
+    if (monthlyDeposit <= 0) {
+      Alert.alert('Invalid Input', 'Please enter a valid monthly deposit amount');
+      return;
+    }
+    if (isNaN(rateNum) || rateNum < 0 || rateNum > 15) {
+      Alert.alert('Invalid Input', 'Interest rate must be between 0% and 15%');
+      return;
+    }
+    if (tenure < 1 || tenure > 120) {
+      Alert.alert('Invalid Input', 'Tenure must be between 1 and 120 months');
+      return;
+    }
+
     const calculated = calculateRD({
       monthlyDeposit,
-      annualRate: interestRate,
+      annualRate: rateNum,
       tenureMonths: tenure,
     });
     setResult(calculated);
-  }, [monthlyDeposit, interestRate, tenure]);
+  };
+
+  const handleReset = () => {
+    setMonthlyDeposit(5000);
+    setInterestRate('6.5');
+    setTenure(12);
+    setResult(null);
+  };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -50,28 +73,20 @@ export default function RDCalculatorScreen({ navigation }) {
                 style={styles.valueInput}
                 value={monthlyDeposit.toString()}
                 onChangeText={(text) => {
-                  const num = parseFloat(text) || 0;
-                  if (num >= 500 && num <= 100000) setMonthlyDeposit(num);
+                  if (text === '') {
+                    setMonthlyDeposit(0);
+                    return;
+                  }
+                  const num = parseFloat(text);
+                  if (!isNaN(num)) {
+                    setMonthlyDeposit(num);
+                  }
                 }}
                 keyboardType="numeric"
               />
             </View>
             <Text style={styles.formattedValue}>{formatIndianCurrency(monthlyDeposit)}</Text>
-            <CustomSlider
-              style={styles.slider}
-              minimumValue={500}
-              maximumValue={100000}
-              step={500}
-              value={monthlyDeposit}
-              onValueChange={setMonthlyDeposit}
-              minimumTrackTintColor={colors.primary}
-              maximumTrackTintColor={colors.border}
-              thumbTintColor={colors.primary}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>₹500</Text>
-              <Text style={styles.sliderLabelText}>₹1L</Text>
-            </View>
+            <Text style={styles.rangeHint}>Range: ₹500 - ₹1 Lakh</Text>
           </View>
 
           <View style={styles.section}>
@@ -79,30 +94,26 @@ export default function RDCalculatorScreen({ navigation }) {
               <Text style={styles.sectionLabel}>Interest Rate</Text>
               <TextInput
                 style={styles.valueInput}
-                value={interestRate.toString()}
+                value={interestRate}
                 onChangeText={(text) => {
-                  const num = parseFloat(text) || 0;
-                  if (num >= 1 && num <= 15) setInterestRate(num);
+                  // Allow empty string
+                  if (text === '') {
+                    setInterestRate('');
+                    return;
+                  }
+                  // Allow decimal input up to 2 decimal places
+                  if (/^\d*\.?\d{0,2}$/.test(text)) {
+                    setInterestRate(text);
+                  }
                 }}
                 keyboardType="decimal-pad"
+                placeholder="0.0"
               />
             </View>
-            <Text style={styles.formattedValue}>{interestRate.toFixed(1)}% per annum</Text>
-            <CustomSlider
-              style={styles.slider}
-              minimumValue={1}
-              maximumValue={15}
-              step={0.1}
-              value={interestRate}
-              onValueChange={setInterestRate}
-              minimumTrackTintColor={colors.primary}
-              maximumTrackTintColor={colors.border}
-              thumbTintColor={colors.primary}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>1%</Text>
-              <Text style={styles.sliderLabelText}>15%</Text>
-            </View>
+            <Text style={styles.formattedValue}>
+              {interestRate ? `${parseFloat(interestRate).toFixed(1)}% per annum` : '0.0% per annum'}
+            </Text>
+            <Text style={styles.rangeHint}>Range: 0% - 15%</Text>
           </View>
 
           <View style={styles.section}>
@@ -112,28 +123,30 @@ export default function RDCalculatorScreen({ navigation }) {
                 style={styles.valueInput}
                 value={tenure.toString()}
                 onChangeText={(text) => {
-                  const num = parseInt(text) || 0;
-                  if (num >= 3 && num <= 120 && num % 3 === 0) setTenure(num);
+                  if (text === '') {
+                    setTenure(0);
+                    return;
+                  }
+                  const num = parseInt(text);
+                  if (!isNaN(num)) {
+                    setTenure(num);
+                  }
                 }}
                 keyboardType="numeric"
               />
             </View>
             <Text style={styles.formattedValue}>{tenure} Months</Text>
-            <CustomSlider
-              style={styles.slider}
-              minimumValue={3}
-              maximumValue={120}
-              step={3}
-              value={tenure}
-              onValueChange={setTenure}
-              minimumTrackTintColor={colors.primary}
-              maximumTrackTintColor={colors.border}
-              thumbTintColor={colors.primary}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>3M</Text>
-              <Text style={styles.sliderLabelText}>10Y</Text>
-            </View>
+            <Text style={styles.rangeHint}>Range: 1 - 120 Months</Text>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+              <Text style={styles.resetButtonText}>Reset</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.calculateButton} onPress={handleCalculate}>
+              <Text style={styles.calculateButtonText}>Calculate</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -199,10 +212,8 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semibold, color: colors.text },
   sliderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
   valueInput: { backgroundColor: colors.backgroundSecondary, borderRadius: borderRadius.base, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, minWidth: 100, fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semibold, color: colors.primary, textAlign: 'right' },
-  formattedValue: { fontSize: typography.fontSize.sm, color: colors.textLight, marginBottom: spacing.sm, textAlign: 'center' },
-  slider: { width: '100%', height: 40 },
-  sliderLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs },
-  sliderLabelText: { fontSize: typography.fontSize.xs, color: colors.textMuted },
+  formattedValue: { fontSize: typography.fontSize.sm, color: colors.textLight, marginBottom: spacing.xs, textAlign: 'center' },
+  rangeHint: { fontSize: typography.fontSize.xs, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xs },
   resultContainer: { marginBottom: spacing.xl },
   resultTitle: { fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.bold, color: colors.text, marginBottom: spacing.base },
   maturityCard: { backgroundColor: '#8b5cf6', borderRadius: borderRadius.lg, padding: spacing.xl, alignItems: 'center', marginBottom: spacing.base, ...shadows.md },
@@ -214,6 +225,11 @@ const styles = StyleSheet.create({
   detailValue: { fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.bold, color: colors.text },
   interestValue: { color: '#8b5cf6' },
   detailDivider: { height: 1, backgroundColor: colors.borderLight, marginVertical: spacing.xs },
+  buttonContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.base },
+  resetButton: { flex: 1, backgroundColor: colors.backgroundSecondary, borderRadius: borderRadius.md, paddingVertical: spacing.md, marginRight: spacing.sm, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  resetButtonText: { color: colors.text, fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semibold },
+  calculateButton: { flex: 1, backgroundColor: colors.primary, borderRadius: borderRadius.md, paddingVertical: spacing.md, marginLeft: spacing.sm, alignItems: 'center', ...shadows.sm },
+  calculateButtonText: { color: colors.background, fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semibold },
   saveButton: { backgroundColor: colors.primary, borderRadius: borderRadius.md, paddingVertical: spacing.md, alignItems: 'center', ...shadows.sm },
   saveButtonText: { color: colors.background, fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semibold },
 });
