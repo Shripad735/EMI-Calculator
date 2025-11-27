@@ -20,7 +20,7 @@ export default function PPFCalculatorScreen({ navigation }) {
   
   // State management
   const [depositAmount, setDepositAmount] = useState(50000);
-  const [interestRate, setInterestRate] = useState(7.1);
+  const [interestRate, setInterestRate] = useState('7.1');
   const [investmentDate, setInvestmentDate] = useState(new Date());
   const [durationYears, setDurationYears] = useState(15);
   const [result, setResult] = useState(null);
@@ -38,6 +38,7 @@ export default function PPFCalculatorScreen({ navigation }) {
   // Validate inputs
   const validateInputs = () => {
     const newErrors = {};
+    const rateNum = parseFloat(interestRate);
 
     // Validate deposit amount (₹500 to ₹1,50,000)
     if (depositAmount < 500) {
@@ -47,9 +48,9 @@ export default function PPFCalculatorScreen({ navigation }) {
     }
 
     // Validate interest rate (up to 50%)
-    if (interestRate <= 0) {
+    if (isNaN(rateNum) || rateNum <= 0) {
       newErrors.interestRate = 'Interest rate must be greater than 0';
-    } else if (interestRate > 50) {
+    } else if (rateNum > 50) {
       newErrors.interestRate = 'Maximum interest rate is 50%';
     }
 
@@ -73,7 +74,7 @@ export default function PPFCalculatorScreen({ navigation }) {
 
     const calculated = calculatePPF({
       annualDeposit: depositAmount,
-      annualRate: interestRate,
+      annualRate: parseFloat(interestRate),
       years: durationYears,
     });
     setResult(calculated);
@@ -82,7 +83,7 @@ export default function PPFCalculatorScreen({ navigation }) {
   // Handle Reset button
   const handleReset = () => {
     setDepositAmount(50000);
-    setInterestRate(7.1);
+    setInterestRate('7.1');
     setInvestmentDate(new Date());
     setDurationYears(15);
     setResult(null);
@@ -108,7 +109,7 @@ export default function PPFCalculatorScreen({ navigation }) {
         type: 'ppf',
         data: { 
           annualDeposit: depositAmount, 
-          interestRate, 
+          interestRate: parseFloat(interestRate), 
           investmentDate: investmentDate.toISOString(), 
           durationYears 
         },
@@ -163,12 +164,17 @@ export default function PPFCalculatorScreen({ navigation }) {
             <Text style={styles.sectionLabel}>Interest Rate (0.1% - 50%)</Text>
             <TextInput
               style={[styles.fullWidthInput, errors.interestRate && styles.inputError]}
-              value={interestRate.toString()}
+              value={interestRate}
               onChangeText={(text) => {
-                // Allow empty string, numbers, and decimal point
-                if (text === '' || text === '.' || text === '0.' || /^\d*\.?\d*$/.test(text)) {
-                  const num = text === '' || text === '.' || text === '0.' ? 0 : parseFloat(text);
-                  setInterestRate(num);
+                // Allow empty string
+                if (text === '') {
+                  setInterestRate('');
+                  setErrors({ ...errors, interestRate: null });
+                  return;
+                }
+                // Allow decimal input up to 2 decimal places
+                if (/^\d*\.?\d{0,2}$/.test(text)) {
+                  setInterestRate(text);
                   setErrors({ ...errors, interestRate: null });
                 }
               }}
@@ -176,7 +182,9 @@ export default function PPFCalculatorScreen({ navigation }) {
               placeholder="Enter interest rate (e.g., 7.1)"
               placeholderTextColor={colors.textMuted}
             />
-            <Text style={styles.formattedValue}>{interestRate.toFixed(1)}% per annum</Text>
+            <Text style={styles.formattedValue}>
+              {interestRate ? `${parseFloat(interestRate).toFixed(1)}% per annum` : '0.0% per annum'}
+            </Text>
             {errors.interestRate && (
               <Text style={styles.errorText}>{errors.interestRate}</Text>
             )}

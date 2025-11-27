@@ -21,7 +21,7 @@ export default function HomeScreen({ navigation }) {
   
   // Form state with slider values
   const [loanAmount, setLoanAmount] = useState(500000);
-  const [interestRate, setInterestRate] = useState(8.5);
+  const [interestRate, setInterestRate] = useState('8.5');
   const [tenure, setTenure] = useState(12);
   const [tenureUnit, setTenureUnit] = useState('months');
   const [loanType, setLoanType] = useState('Personal');
@@ -46,12 +46,14 @@ export default function HomeScreen({ navigation }) {
 
   // Handle Calculate button
   const handleCalculate = () => {
+    const rateNum = parseFloat(interestRate);
+    
     // Validate inputs
     if (loanAmount <= 0) {
       alert('Please enter a valid loan amount');
       return;
     }
-    if (interestRate < 0 || interestRate > 30) {
+    if (isNaN(rateNum) || rateNum < 0 || rateNum > 30) {
       alert('Interest rate must be between 0% and 30%');
       return;
     }
@@ -63,7 +65,7 @@ export default function HomeScreen({ navigation }) {
     const tenureMonths = tenureUnit === 'years' ? tenure * 12 : tenure;
     const calculatedResult = calculateEMI({
       principal: loanAmount,
-      annualRate: interestRate,
+      annualRate: rateNum,
       tenureMonths,
     });
     setResult(calculatedResult);
@@ -72,7 +74,7 @@ export default function HomeScreen({ navigation }) {
   // Handle Reset button
   const handleReset = () => {
     setLoanAmount(500000);
-    setInterestRate(8.5);
+    setInterestRate('8.5');
     setTenure(12);
     setTenureUnit('months');
     setLoanType('Personal');
@@ -101,7 +103,7 @@ export default function HomeScreen({ navigation }) {
       const tenureMonths = tenureUnit === 'years' ? tenure * 12 : tenure;
       const planData = {
         loanAmount,
-        interestRate,
+        interestRate: parseFloat(interestRate),
         tenure: tenureMonths,
         loanType,
         emi: result.emi,
@@ -240,24 +242,26 @@ export default function HomeScreen({ navigation }) {
               >
                 <TextInput
                   style={styles.valueInput}
-                  value={interestRate.toString()}
+                  value={interestRate}
                   onChangeText={(text) => {
+                    // Allow empty string
                     if (text === '') {
-                      setInterestRate(0);
+                      setInterestRate('');
                       return;
                     }
-                    // Allow any decimal input without validation
-                    const numValue = parseFloat(text);
-                    if (!isNaN(numValue)) {
-                      setInterestRate(numValue);
+                    // Allow decimal input up to 2 decimal places
+                    if (/^\d*\.?\d{0,2}$/.test(text)) {
+                      setInterestRate(text);
                     }
                   }}
                   keyboardType="decimal-pad"
-                  placeholder="Enter rate"
+                  placeholder="0.0"
                 />
               </TouchableOpacity>
             </View>
-            <Text style={styles.formattedValue}>{interestRate.toFixed(1)}% per annum</Text>
+            <Text style={styles.formattedValue}>
+              {interestRate ? `${parseFloat(interestRate).toFixed(1)}% per annum` : '0.0% per annum'}
+            </Text>
             <Text style={styles.rangeHint}>Range: 0% - 30%</Text>
           </View>
 
