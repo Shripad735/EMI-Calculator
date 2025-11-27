@@ -32,14 +32,16 @@ const CustomSlider = ({
         step={step}
         value={value}
         onValueChange={onValueChange}
+        onSlidingComplete={onValueChange}
         minimumTrackTintColor={minimumTrackTintColor}
         maximumTrackTintColor={maximumTrackTintColor}
         thumbTintColor={thumbTintColor}
         style={styles.slider}
+        tapToSeek={true}
         // Platform-specific optimizations
         {...Platform.select({
           ios: {
-            // iOS-specific props for better touch handling
+            // iOS uses native slider
           },
           android: {
             // Android-specific props for better touch handling

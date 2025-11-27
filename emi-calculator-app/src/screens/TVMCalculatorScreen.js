@@ -242,7 +242,12 @@ export default function TVMCalculatorScreen({ navigation }) {
                     field.disabled && styles.inputDisabled,
                   ]}
                   value={field.value}
-                  onChangeText={field.setter}
+                  onChangeText={(text) => {
+                    // Allow empty string, numbers, and decimal point
+                    if (text === '' || text === '.' || text === '0.' || /^\d*\.?\d*$/.test(text)) {
+                      field.setter(text);
+                    }
+                  }}
                   keyboardType="decimal-pad"
                   editable={!field.disabled}
                   placeholder={field.disabled ? 'Calculated' : '0'}
@@ -415,6 +420,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   variableCard: {
     backgroundColor: colors.backgroundSecondary,
@@ -424,8 +430,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: '30%',
-    flex: 1,
+    width: '31%',
     minHeight: 80,
   },
   variableCardActive: {

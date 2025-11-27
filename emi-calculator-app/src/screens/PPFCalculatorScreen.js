@@ -143,9 +143,12 @@ export default function PPFCalculatorScreen({ navigation }) {
                 style={[styles.valueInput, errors.depositAmount && styles.inputError]}
                 value={depositAmount.toString()}
                 onChangeText={(text) => {
-                  const num = parseFloat(text) || 0;
-                  setDepositAmount(num);
-                  setErrors({ ...errors, depositAmount: null });
+                  // Allow empty string and valid numbers
+                  if (text === '' || /^\d+$/.test(text)) {
+                    const num = text === '' ? 0 : parseInt(text);
+                    setDepositAmount(num);
+                    setErrors({ ...errors, depositAmount: null });
+                  }
                 }}
                 keyboardType="numeric"
               />
@@ -182,9 +185,12 @@ export default function PPFCalculatorScreen({ navigation }) {
                 style={[styles.valueInput, errors.interestRate && styles.inputError]}
                 value={interestRate.toString()}
                 onChangeText={(text) => {
-                  const num = parseFloat(text) || 0;
-                  setInterestRate(num);
-                  setErrors({ ...errors, interestRate: null });
+                  // Allow empty string, numbers, and decimal point
+                  if (text === '' || text === '.' || text === '0.' || /^\d*\.?\d*$/.test(text)) {
+                    const num = text === '' || text === '.' || text === '0.' ? 0 : parseFloat(text);
+                    setInterestRate(num);
+                    setErrors({ ...errors, interestRate: null });
+                  }
                 }}
                 keyboardType="decimal-pad"
               />
@@ -230,9 +236,12 @@ export default function PPFCalculatorScreen({ navigation }) {
                 style={[styles.valueInput, errors.durationYears && styles.inputError]}
                 value={durationYears.toString()}
                 onChangeText={(text) => {
-                  const num = parseInt(text) || 0;
-                  setDurationYears(num);
-                  setErrors({ ...errors, durationYears: null });
+                  // Allow empty string and valid numbers
+                  if (text === '' || /^\d+$/.test(text)) {
+                    const num = text === '' ? 0 : parseInt(text);
+                    setDurationYears(num);
+                    setErrors({ ...errors, durationYears: null });
+                  }
                 }}
                 keyboardType="numeric"
               />
