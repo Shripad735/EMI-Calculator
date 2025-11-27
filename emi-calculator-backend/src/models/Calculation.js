@@ -14,7 +14,7 @@ const calculationSchema = new mongoose.Schema({
   type: {
     type: String,
     enum: {
-      values: ['fd', 'rd', 'sip', 'gst'],
+      values: ['fd', 'rd', 'sip', 'gst', 'tvm', 'ppf'],
       message: '{VALUE} is not a valid calculation type'
     },
     required: [true, 'Calculation type is required']

@@ -426,6 +426,48 @@ export default function HomeScreen({ navigation }) {
             )}
           </View>
         )}
+
+        {/* Other Calculators Section */}
+        <View style={styles.otherCalculatorsSection}>
+          <Text style={styles.otherCalculatorsTitle}>More Financial Tools</Text>
+          <View style={styles.calculatorGrid}>
+            <TouchableOpacity
+              style={styles.calculatorGridCard}
+              onPress={() => navigation.navigate('TVMCalculator')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.calculatorGridIcon, { backgroundColor: '#f97316' + '20' }]}>
+                <Text style={styles.calculatorGridIconText}>⏰</Text>
+              </View>
+              <Text style={styles.calculatorGridTitle}>TVM Calculator</Text>
+              <Text style={styles.calculatorGridDescription}>Time Value of Money</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.calculatorGridCard}
+              onPress={() => navigation.navigate('PPFCalculator')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.calculatorGridIcon, { backgroundColor: '#14b8a6' + '20' }]}>
+                <Text style={styles.calculatorGridIconText}>🏛️</Text>
+              </View>
+              <Text style={styles.calculatorGridTitle}>PPF Calculator</Text>
+              <Text style={styles.calculatorGridDescription}>Public Provident Fund</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.calculatorGridCard}
+              onPress={() => navigation.navigate('Dashboard')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.calculatorGridIcon, { backgroundColor: colors.primary + '20' }]}>
+                <Text style={styles.calculatorGridIconText}>📊</Text>
+              </View>
+              <Text style={styles.calculatorGridTitle}>All Calculators</Text>
+              <Text style={styles.calculatorGridDescription}>View all tools</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
     </ScrollView>
   );
@@ -703,6 +745,52 @@ const styles = StyleSheet.create({
     color: colors.errorDark,
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.semibold,
+    textAlign: 'center',
+  },
+  otherCalculatorsSection: {
+    marginTop: spacing.xl,
+    marginBottom: spacing.xl,
+  },
+  otherCalculatorsTitle: {
+    fontSize: typography.fontSize.xl,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text,
+    marginBottom: spacing.base,
+  },
+  calculatorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  calculatorGridCard: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.lg,
+    padding: spacing.base,
+    width: '47%',
+    alignItems: 'center',
+    ...shadows.base,
+  },
+  calculatorGridIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: borderRadius.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  calculatorGridIconText: {
+    fontSize: 28,
+  },
+  calculatorGridTitle: {
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+    textAlign: 'center',
+  },
+  calculatorGridDescription: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textLight,
     textAlign: 'center',
   },
 });

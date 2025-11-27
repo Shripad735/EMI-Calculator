@@ -3,7 +3,7 @@ const Calculation = require('../models/Calculation');
 /**
  * Get all calculations for authenticated user
  * GET /calculations
- * Optional query param: type (fd, rd, sip, gst)
+ * Optional query param: type (fd, rd, sip, gst, tvm, ppf)
  */
 async function getCalculations(req, res, next) {
   try {
@@ -51,7 +51,7 @@ async function createCalculation(req, res, next) {
     }
 
     // Validate type
-    const validTypes = ['fd', 'rd', 'sip', 'gst'];
+    const validTypes = ['fd', 'rd', 'sip', 'gst', 'tvm', 'ppf'];
     if (!validTypes.includes(type)) {
       return res.status(400).json({
         message: 'Validation failed',

@@ -15,6 +15,8 @@ import FDCalculatorScreen from '../screens/FDCalculatorScreen';
 import RDCalculatorScreen from '../screens/RDCalculatorScreen';
 import SIPCalculatorScreen from '../screens/SIPCalculatorScreen';
 import GSTCalculatorScreen from '../screens/GSTCalculatorScreen';
+import TVMCalculatorScreen from '../screens/TVMCalculatorScreen';
+import PPFCalculatorScreen from '../screens/PPFCalculatorScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
@@ -37,6 +39,8 @@ function AuthStack() {
       <Stack.Screen name="RDCalculator" component={RDCalculatorScreen} />
       <Stack.Screen name="SIPCalculator" component={SIPCalculatorScreen} />
       <Stack.Screen name="GSTCalculator" component={GSTCalculatorScreen} />
+      <Stack.Screen name="TVMCalculator" component={TVMCalculatorScreen} />
+      <Stack.Screen name="PPFCalculator" component={PPFCalculatorScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
     </Stack.Navigator>
   );
@@ -61,6 +65,8 @@ function MainStack() {
       <Stack.Screen name="RDCalculator" component={RDCalculatorScreen} />
       <Stack.Screen name="SIPCalculator" component={SIPCalculatorScreen} />
       <Stack.Screen name="GSTCalculator" component={GSTCalculatorScreen} />
+      <Stack.Screen name="TVMCalculator" component={TVMCalculatorScreen} />
+      <Stack.Screen name="PPFCalculator" component={PPFCalculatorScreen} />
       <Stack.Screen name="SavedPlans" component={SavedPlansScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
     </Stack.Navigator>

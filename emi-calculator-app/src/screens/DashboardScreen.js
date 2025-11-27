@@ -66,6 +66,22 @@ export default function DashboardScreen({ navigation }) {
       screen: 'GSTCalculator',
       color: '#06b6d4',
     },
+    {
+      id: 'tvm',
+      title: 'TVM Calculator',
+      icon: '⏰',
+      description: 'Time Value of Money',
+      screen: 'TVMCalculator',
+      color: '#f97316',
+    },
+    {
+      id: 'ppf',
+      title: 'PPF Calculator',
+      icon: '🏛️',
+      description: 'Public Provident Fund',
+      screen: 'PPFCalculator',
+      color: '#14b8a6',
+    },
   ];
 
   return (
